@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizing Optimization</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #eee;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            color: #fff;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: #888;
+            margin-bottom: 50px;
+        }
+
+        .visualizations {
+            display: grid;
+            gap: 20px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 30px;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: #e94560;
+            transform: translateY(-2px);
+        }
+
+        .card.coming-soon {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .card h2 {
+            font-size: 1.4rem;
+            margin-bottom: 10px;
+            color: #e94560;
+        }
+
+        .card p {
+            color: #aaa;
+            line-height: 1.6;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        .badge.available {
+            background: #00ff88;
+            color: #000;
+        }
+
+        .badge.coming-soon {
+            background: #666;
+            color: #fff;
+        }
+
+        footer {
+            margin-top: 60px;
+            text-align: center;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        footer a {
+            color: #e94560;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Visualizing Optimization</h1>
+        <p class="subtitle">Interactive visualizations of fundamental optimization concepts</p>
+
+        <div class="visualizations">
+            <a href="./convex-hull/" class="card">
+                <h2>Convex Hull</h2>
+                <p>Click to place points on a 2D canvas and compute the convex hull — the smallest convex polygon enclosing all points. Uses the Graham Scan algorithm.</p>
+            </a>
+
+            <a href="./conic-hull/" class="card">
+                <h2>Conic Hull</h2>
+                <p>Visualize the conic hull — the set of all non-negative linear combinations of points. See how rays from the origin form a cone that contains all the points.</p>
+            </a>
+        </div>
+
+        <footer>
+            Built with <a href="https://threejs.org/" target="_blank">Three.js</a> |
+            <a href="https://github.com/hardikkamboj/optimization_visualization" target="_blank">View on GitHub</a>
+        </footer>
+    </div>
+</body>
+</html>

@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Convex Hull Visualization</title>
+    <link rel="stylesheet" href="../shared/styles.css">
+    <style>
+        body {
+            display: flex;
+            height: 100vh;
+        }
+
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            cursor: crosshair;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .point-count {
+            color: #888;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        .back-link {
+            display: inline-block;
+            color: #e94560;
+            text-decoration: none;
+            font-size: 0.85rem;
+            margin-bottom: 15px;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Mode tabs */
+        .mode-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid #0f3460;
+        }
+
+        .mode-tab {
+            flex: 1;
+            padding: 8px;
+            margin: 0 !important;
+            width: auto !important;
+            border: none;
+            border-radius: 0;
+            background: #1a1a2e;
+            color: #888;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .mode-tab.active {
+            background: #e94560;
+            color: #fff;
+        }
+
+        .mode-tab:hover:not(.active) {
+            background: #0f3460;
+        }
+
+        /* 3D controls */
+        .controls-3d {
+            display: none;
+        }
+
+        .controls-3d.visible {
+            display: block;
+        }
+
+        .add-point-row {
+            display: flex;
+            gap: 5px;
+            margin: 5px 0;
+        }
+
+        .add-point-row input {
+            flex: 1;
+            padding: 6px;
+            font-size: 0.85rem;
+        }
+
+        #container-3d {
+            display: none;
+            flex: 1;
+            position: relative;
+        }
+
+        #container-3d.visible {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <a href="../" class="back-link">&larr; Back to all visualizations</a>
+        <h1>Convex Hull</h1>
+
+        <div class="mode-tabs">
+            <button class="mode-tab active" id="tab-2d">2D</button>
+            <button class="mode-tab" id="tab-3d">3D</button>
+        </div>
+
+        <!-- 2D controls -->
+        <div id="controls-2d">
+            <h2>Input Mode</h2>
+            <div class="mode-tabs" style="margin-bottom: 10px;">
+                <button class="mode-tab active" id="input-click">Click</button>
+                <button class="mode-tab" id="input-draw">Draw</button>
+            </div>
+
+            <div class="info-section">
+                <p id="instructions-text">Click on the canvas to place points. Then compute the convex hull to see the smallest convex polygon enclosing all points.</p>
+            </div>
+
+            <p class="point-count">Points: <span id="point-count">0</span></p>
+
+            <label style="display: flex; align-items: center; gap: 8px; margin: 10px 0; cursor: pointer;">
+                <input type="checkbox" id="chk-live" style="width: auto; accent-color: #e94560;">
+                <span>Live update</span>
+            </label>
+
+            <button id="btn-hull">Compute Convex Hull</button>
+            <button id="btn-clear">Clear All</button>
+        </div>
+
+        <!-- 3D controls -->
+        <div id="controls-3d" class="controls-3d">
+            <h2>Instructions</h2>
+            <div class="info-section">
+                <p>Generate random points or add specific coordinates, then compute the 3D convex hull. Drag to rotate, scroll to zoom.</p>
+            </div>
+
+            <p class="point-count">Points: <span id="point-count-3d">0</span></p>
+
+            <h2>Add Random Points</h2>
+            <div style="display: flex; gap: 5px; align-items: center;">
+                <input type="number" id="num-random" value="20" min="1" max="200" style="flex: 1;">
+                <button id="btn-random" style="flex: 1;">Generate</button>
+            </div>
+
+            <h2>Add Point (x, y, z)</h2>
+            <div class="add-point-row">
+                <input type="number" id="pt-x" placeholder="x" step="0.1">
+                <input type="number" id="pt-y" placeholder="y" step="0.1">
+                <input type="number" id="pt-z" placeholder="z" step="0.1">
+            </div>
+            <button id="btn-add-point">Add Point</button>
+
+            <button id="btn-hull-3d">Compute Convex Hull</button>
+            <button id="btn-clear-3d">Clear All</button>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: #00ff88;"></div>
+                <span>Points</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #e94560;"></div>
+                <span>Convex Hull</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #ffcc00;"></div>
+                <span>Hull Vertices</span>
+            </div>
+        </div>
+
+        <h2>About</h2>
+        <div class="info-section">
+            <p>The <strong>convex hull</strong> of a set of points is the smallest convex set that contains all the points.</p>
+            <br>
+            <p><strong>2D:</strong> Graham Scan — O(n log n)</p>
+            <p><strong>3D:</strong> Incremental algorithm — builds the hull by adding one point at a time.</p>
+        </div>
+    </div>
+
+    <!-- 2D canvas -->
+    <div class="canvas-container" id="container-2d">
+        <canvas id="canvas"></canvas>
+        <div class="info-overlay">Click anywhere to add points</div>
+    </div>
+
+    <!-- 3D container -->
+    <div id="container-3d">
+        <div class="info-overlay">Drag to rotate · Scroll to zoom</div>
+    </div>
+
+    <!-- Three.js for 3D -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        // ===================== MODE SWITCHING =====================
+        const tab2d = document.getElementById('tab-2d');
+        const tab3d = document.getElementById('tab-3d');
+        const controls2d = document.getElementById('controls-2d');
+        const controls3d = document.getElementById('controls-3d');
+        const container2d = document.getElementById('container-2d');
+        const container3d = document.getElementById('container-3d');
+
+        let mode = '2d';
+
+        tab2d.addEventListener('click', () => switchMode('2d'));
+        tab3d.addEventListener('click', () => switchMode('3d'));
+
+        function switchMode(m) {
+            mode = m;
+            tab2d.classList.toggle('active', m === '2d');
+            tab3d.classList.toggle('active', m === '3d');
+            controls2d.style.display = m === '2d' ? 'block' : 'none';
+            controls3d.classList.toggle('visible', m === '3d');
+            container2d.style.display = m === '2d' ? 'flex' : 'none';
+            container3d.classList.toggle('visible', m === '3d');
+
+            if (m === '2d') {
+                resize2d();
+            } else {
+                init3d();
+                resize3d();
+            }
+        }
+
+        // ===================== 2D INPUT MODE =====================
+        const inputClick = document.getElementById('input-click');
+        const inputDraw = document.getElementById('input-draw');
+        const instructionsText = document.getElementById('instructions-text');
+        const infoOverlay2d = container2d.querySelector('.info-overlay');
+        let inputMode = 'click';
+
+        inputClick.addEventListener('click', () => setInputMode('click'));
+        inputDraw.addEventListener('click', () => setInputMode('draw'));
+
+        function setInputMode(m) {
+            inputMode = m;
+            inputClick.classList.toggle('active', m === 'click');
+            inputDraw.classList.toggle('active', m === 'draw');
+            if (m === 'click') {
+                instructionsText.textContent = 'Click on the canvas to place points. Then compute the convex hull to see the smallest convex polygon enclosing all points.';
+                infoOverlay2d.textContent = 'Click anywhere to add points';
+                container2d.style.cursor = 'crosshair';
+            } else {
+                instructionsText.textContent = 'Click and drag to draw a shape. Points are sampled along your stroke. Then compute the convex hull.';
+                infoOverlay2d.textContent = 'Click and drag to draw';
+                container2d.style.cursor = 'default';
+            }
+        }
+
+        // ===================== 2D MODE =====================
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const pointCountEl = document.getElementById('point-count');
+
+        let points2d = [];
+        let hull2d = [];
+        let isDrawing = false;
+
+        function resize2d() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            draw2d();
+        }
+
+        window.addEventListener('resize', () => {
+            if (mode === '2d') resize2d();
+            else resize3d();
+        });
+        resize2d();
+
+        function addPoint(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            points2d.push({ x, y });
+            pointCountEl.textContent = points2d.length;
+        }
+
+        function updateHullIfLive() {
+            if (document.getElementById('chk-live').checked && points2d.length >= 2) {
+                hull2d = grahamScan(points2d);
+            } else {
+                hull2d = [];
+            }
+            draw2d();
+        }
+
+        // Click mode
+        canvas.addEventListener('click', (e) => {
+            if (inputMode !== 'click') return;
+            addPoint(e);
+            updateHullIfLive();
+        });
+
+        // Draw mode
+        const MIN_DRAW_DIST = 20; // min pixels between sampled points
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (inputMode !== 'draw') return;
+            isDrawing = true;
+            addPoint(e);
+            draw2d();
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDrawing || inputMode !== 'draw') return;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const last = points2d[points2d.length - 1];
+            const d = Math.sqrt((x - last.x) ** 2 + (y - last.y) ** 2);
+            if (d >= MIN_DRAW_DIST) {
+                points2d.push({ x, y });
+                pointCountEl.textContent = points2d.length;
+                updateHullIfLive();
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            if (!isDrawing) return;
+            isDrawing = false;
+            updateHullIfLive();
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            if (!isDrawing) return;
+            isDrawing = false;
+            updateHullIfLive();
+        });
+
+        function cross2d(O, A, B) {
+            return (A.x - O.x) * (B.y - O.y) - (A.y - O.y) * (B.x - O.x);
+        }
+
+        function grahamScan(pts) {
+            const n = pts.length;
+            if (n < 3) return pts.slice();
+
+            let start = 0;
+            for (let i = 1; i < n; i++) {
+                if (pts[i].y > pts[start].y || (pts[i].y === pts[start].y && pts[i].x < pts[start].x)) {
+                    start = i;
+                }
+            }
+
+            const pivot = pts[start];
+            const sorted = pts.slice();
+            sorted.splice(start, 1);
+
+            sorted.sort((a, b) => {
+                const angle_a = Math.atan2(pivot.y - a.y, a.x - pivot.x);
+                const angle_b = Math.atan2(pivot.y - b.y, b.x - pivot.x);
+                if (Math.abs(angle_a - angle_b) < 1e-10) {
+                    const distA = (a.x - pivot.x) ** 2 + (a.y - pivot.y) ** 2;
+                    const distB = (b.x - pivot.x) ** 2 + (b.y - pivot.y) ** 2;
+                    return distA - distB;
+                }
+                return angle_a - angle_b;
+            });
+
+            const stack = [pivot, sorted[0]];
+            for (let i = 1; i < sorted.length; i++) {
+                while (stack.length > 1 && cross2d(stack[stack.length - 2], stack[stack.length - 1], sorted[i]) >= 0) {
+                    stack.pop();
+                }
+                stack.push(sorted[i]);
+            }
+            return stack;
+        }
+
+        function draw2d() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 40) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += 40) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+            }
+
+            // Axes — origin at bottom-left with some padding
+            const ox = 40;
+            const oy = canvas.height - 40;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.lineWidth = 1;
+            // X axis
+            ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(canvas.width - 20, oy); ctx.stroke();
+            // Y axis
+            ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ox, 20); ctx.stroke();
+            // Arrowheads
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.beginPath(); ctx.moveTo(canvas.width - 20, oy); ctx.lineTo(canvas.width - 28, oy - 4); ctx.lineTo(canvas.width - 28, oy + 4); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(ox, 20); ctx.lineTo(ox - 4, 28); ctx.lineTo(ox + 4, 28); ctx.fill();
+            // Labels
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.font = '11px -apple-system, sans-serif';
+            ctx.fillText('x', canvas.width - 18, oy + 14);
+            ctx.fillText('y', ox - 14, 24);
+
+            // Hull
+            if (hull2d.length >= 3) {
+                ctx.beginPath();
+                ctx.moveTo(hull2d[0].x, hull2d[0].y);
+                for (let i = 1; i < hull2d.length; i++) ctx.lineTo(hull2d[i].x, hull2d[i].y);
+                ctx.closePath();
+                ctx.fillStyle = 'rgba(233, 69, 96, 0.1)';
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.moveTo(hull2d[0].x, hull2d[0].y);
+                for (let i = 1; i < hull2d.length; i++) ctx.lineTo(hull2d[i].x, hull2d[i].y);
+                ctx.closePath();
+                ctx.strokeStyle = '#e94560';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            } else if (hull2d.length === 2) {
+                ctx.beginPath();
+                ctx.moveTo(hull2d[0].x, hull2d[0].y);
+                ctx.lineTo(hull2d[1].x, hull2d[1].y);
+                ctx.strokeStyle = '#e94560';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            // Points
+            for (const p of points2d) {
+                const isHull = hull2d.some(h => h.x === p.x && h.y === p.y);
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, isHull ? 7 : 5, 0, Math.PI * 2);
+                ctx.fillStyle = isHull ? '#ffcc00' : '#00ff88';
+                ctx.fill();
+                if (isHull) { ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 2; ctx.stroke(); }
+            }
+        }
+
+        document.getElementById('btn-hull').addEventListener('click', () => {
+            if (points2d.length < 2) return;
+            hull2d = grahamScan(points2d);
+            draw2d();
+        });
+
+        document.getElementById('btn-clear').addEventListener('click', () => {
+            points2d = []; hull2d = []; pointCountEl.textContent = 0; draw2d();
+        });
+
+        // ===================== 3D MODE =====================
+        let scene, camera, renderer, controls3dOrbit;
+        let points3d = [];
+        let hullMesh = null;
+        let pointsMesh = null;
+        let hullEdges = null;
+        let initialized3d = false;
+
+        function init3d() {
+            if (initialized3d) return;
+            initialized3d = true;
+
+            scene = new THREE.Scene();
+
+            camera = new THREE.PerspectiveCamera(50, container3d.clientWidth / container3d.clientHeight, 0.1, 1000);
+            camera.position.set(6, 4, 6);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setClearColor(0x1a1a2e);
+            container3d.appendChild(renderer.domElement);
+
+            controls3dOrbit = new THREE.OrbitControls(camera, renderer.domElement);
+            controls3dOrbit.enableDamping = true;
+
+            // Axes
+            const axesLen = 4;
+            const axesMat = [
+                new THREE.LineBasicMaterial({ color: 0xff4444 }),
+                new THREE.LineBasicMaterial({ color: 0x44ff44 }),
+                new THREE.LineBasicMaterial({ color: 0x4444ff }),
+            ];
+            const dirs = [[axesLen,0,0],[0,axesLen,0],[0,0,axesLen]];
+            for (let i = 0; i < 3; i++) {
+                const geo = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(0,0,0),
+                    new THREE.Vector3(...dirs[i])
+                ]);
+                scene.add(new THREE.Line(geo, axesMat[i]));
+            }
+
+            // Grid on XZ plane
+            const grid = new THREE.GridHelper(8, 16, 0x0f3460, 0x0f3460);
+            grid.material.opacity = 0.3;
+            grid.material.transparent = true;
+            scene.add(grid);
+
+            // Lighting
+            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(5, 10, 5);
+            scene.add(dirLight);
+
+            resize3d();
+            animate3d();
+        }
+
+        function resize3d() {
+            if (!renderer) return;
+            const w = container3d.clientWidth;
+            const h = container3d.clientHeight;
+            renderer.setSize(w, h);
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+        }
+
+        function animate3d() {
+            requestAnimationFrame(animate3d);
+            if (controls3dOrbit) controls3dOrbit.update();
+            if (renderer) renderer.render(scene, camera);
+        }
+
+        function updatePoints3dVisual() {
+            // Remove old points mesh
+            if (pointsMesh) { scene.remove(pointsMesh); pointsMesh.geometry.dispose(); pointsMesh.material.dispose(); }
+
+            if (points3d.length === 0) return;
+
+            const geo = new THREE.BufferGeometry();
+            const positions = new Float32Array(points3d.length * 3);
+            for (let i = 0; i < points3d.length; i++) {
+                positions[i * 3] = points3d[i].x;
+                positions[i * 3 + 1] = points3d[i].y;
+                positions[i * 3 + 2] = points3d[i].z;
+            }
+            geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+            pointsMesh = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0x00ff88, size: 0.2 }));
+            scene.add(pointsMesh);
+        }
+
+        function clearHull3d() {
+            if (hullMesh) { scene.remove(hullMesh); hullMesh.geometry.dispose(); hullMesh.material.dispose(); hullMesh = null; }
+            if (hullEdges) { scene.remove(hullEdges); hullEdges.geometry.dispose(); hullEdges.material.dispose(); hullEdges = null; }
+        }
+
+        // --- Convex Hull 3D (Incremental) ---
+        function convexHull3d(pts) {
+            if (pts.length < 4) return [];
+
+            // Find 4 non-coplanar points to form initial tetrahedron
+            let p0 = 0, p1 = -1, p2 = -1, p3 = -1;
+
+            // Find p1: furthest from p0
+            let maxDist = 0;
+            for (let i = 1; i < pts.length; i++) {
+                const d = dist(pts[p0], pts[i]);
+                if (d > maxDist) { maxDist = d; p1 = i; }
+            }
+            if (p1 === -1) return [];
+
+            // Find p2: furthest from line p0-p1
+            maxDist = 0;
+            const lineDir = sub(pts[p1], pts[p0]);
+            for (let i = 0; i < pts.length; i++) {
+                if (i === p0 || i === p1) continue;
+                const d = crossLen(lineDir, sub(pts[i], pts[p0]));
+                if (d > maxDist) { maxDist = d; p2 = i; }
+            }
+            if (p2 === -1) return [];
+
+            // Find p3: furthest from plane p0-p1-p2
+            const normal = crossVec(sub(pts[p1], pts[p0]), sub(pts[p2], pts[p0]));
+            maxDist = 0;
+            for (let i = 0; i < pts.length; i++) {
+                if (i === p0 || i === p1 || i === p2) continue;
+                const d = Math.abs(dotVec(normal, sub(pts[i], pts[p0])));
+                if (d > maxDist) { maxDist = d; p3 = i; }
+            }
+            if (p3 === -1) return [];
+
+            // Orient initial tetrahedron so normals point outward
+            let faces = [];
+            const center = {
+                x: (pts[p0].x + pts[p1].x + pts[p2].x + pts[p3].x) / 4,
+                y: (pts[p0].y + pts[p1].y + pts[p2].y + pts[p3].y) / 4,
+                z: (pts[p0].z + pts[p1].z + pts[p2].z + pts[p3].z) / 4,
+            };
+
+            const tetra = [p0, p1, p2, p3];
+            // 4 faces of tetrahedron
+            const faceIndices = [[0,1,2],[0,1,3],[0,2,3],[1,2,3]];
+            for (const fi of faceIndices) {
+                let a = tetra[fi[0]], b = tetra[fi[1]], c = tetra[fi[2]];
+                const n = faceNormal(pts[a], pts[b], pts[c]);
+                const mid = { x: (pts[a].x + pts[b].x + pts[c].x) / 3, y: (pts[a].y + pts[b].y + pts[c].y) / 3, z: (pts[a].z + pts[b].z + pts[c].z) / 3 };
+                // Normal should point away from center
+                if (dotVec(n, sub(mid, center)) < 0) {
+                    [b, c] = [c, b]; // flip winding
+                }
+                faces.push([a, b, c]);
+            }
+
+            // Add remaining points one by one
+            const used = new Set(tetra);
+            for (let i = 0; i < pts.length; i++) {
+                if (used.has(i)) continue;
+                const p = pts[i];
+
+                // Find visible faces
+                const visible = [];
+                const invisible = [];
+                for (let f = 0; f < faces.length; f++) {
+                    const [a, b, c] = faces[f];
+                    const n = faceNormal(pts[a], pts[b], pts[c]);
+                    const mid = { x: (pts[a].x + pts[b].x + pts[c].x) / 3, y: (pts[a].y + pts[b].y + pts[c].y) / 3, z: (pts[a].z + pts[b].z + pts[c].z) / 3 };
+                    if (dotVec(n, sub(p, mid)) > 1e-10) {
+                        visible.push(f);
+                    } else {
+                        invisible.push(f);
+                    }
+                }
+
+                if (visible.length === 0) continue; // Inside hull
+
+                // Find horizon edges (edges shared between visible and invisible faces)
+                const horizon = [];
+                for (const vi of visible) {
+                    const face = faces[vi];
+                    for (let e = 0; e < 3; e++) {
+                        const ea = face[e], eb = face[(e + 1) % 3];
+                        // Check if the opposite face (sharing edge eb-ea) is invisible
+                        let shared = false;
+                        for (const ii of invisible) {
+                            const f2 = faces[ii];
+                            if (hasEdge(f2, eb, ea)) { shared = true; break; }
+                        }
+                        if (shared) horizon.push([ea, eb]);
+                    }
+                }
+
+                // Remove visible faces
+                const newFaces = [];
+                for (let f = 0; f < faces.length; f++) {
+                    if (!visible.includes(f)) newFaces.push(faces[f]);
+                }
+
+                // Create new faces from horizon edges to new point
+                for (const [ea, eb] of horizon) {
+                    newFaces.push([ea, eb, i]);
+                }
+
+                faces = newFaces;
+            }
+
+            return faces;
+        }
+
+        function hasEdge(face, a, b) {
+            for (let e = 0; e < 3; e++) {
+                if (face[e] === a && face[(e + 1) % 3] === b) return true;
+            }
+            return false;
+        }
+
+        function sub(a, b) { return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z }; }
+        function dotVec(a, b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
+        function crossVec(a, b) {
+            return { x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x };
+        }
+        function crossLen(a, b) { const c = crossVec(a, b); return Math.sqrt(c.x*c.x + c.y*c.y + c.z*c.z); }
+        function dist(a, b) { return Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2 + (a.z-b.z)**2); }
+        function faceNormal(a, b, c) { return crossVec(sub(b, a), sub(c, a)); }
+
+        function buildHull3d(faces) {
+            clearHull3d();
+            if (faces.length === 0) return;
+
+            // Hull faces
+            const geo = new THREE.BufferGeometry();
+            const verts = [];
+            for (const [a, b, c] of faces) {
+                verts.push(points3d[a].x, points3d[a].y, points3d[a].z);
+                verts.push(points3d[b].x, points3d[b].y, points3d[b].z);
+                verts.push(points3d[c].x, points3d[c].y, points3d[c].z);
+            }
+            geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts), 3));
+            geo.computeVertexNormals();
+
+            hullMesh = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({
+                color: 0xe94560,
+                transparent: true,
+                opacity: 0.25,
+                side: THREE.DoubleSide,
+            }));
+            scene.add(hullMesh);
+
+            // Hull edges
+            const edgesGeo = new THREE.EdgesGeometry(geo);
+            hullEdges = new THREE.LineSegments(edgesGeo, new THREE.LineBasicMaterial({ color: 0xe94560 }));
+            scene.add(hullEdges);
+        }
+
+        // --- 3D Button handlers ---
+        document.getElementById('btn-random').addEventListener('click', () => {
+            const n = parseInt(document.getElementById('num-random').value) || 20;
+            for (let i = 0; i < n; i++) {
+                points3d.push({
+                    x: (Math.random() - 0.5) * 6,
+                    y: (Math.random() - 0.5) * 6,
+                    z: (Math.random() - 0.5) * 6,
+                });
+            }
+            document.getElementById('point-count-3d').textContent = points3d.length;
+            updatePoints3dVisual();
+        });
+
+        document.getElementById('btn-add-point').addEventListener('click', () => {
+            const x = parseFloat(document.getElementById('pt-x').value) || 0;
+            const y = parseFloat(document.getElementById('pt-y').value) || 0;
+            const z = parseFloat(document.getElementById('pt-z').value) || 0;
+            points3d.push({ x, y, z });
+            document.getElementById('point-count-3d').textContent = points3d.length;
+            updatePoints3dVisual();
+        });
+
+        document.getElementById('btn-hull-3d').addEventListener('click', () => {
+            if (points3d.length < 4) return;
+            const faces = convexHull3d(points3d);
+            buildHull3d(faces);
+        });
+
+        document.getElementById('btn-clear-3d').addEventListener('click', () => {
+            points3d = [];
+            document.getElementById('point-count-3d').textContent = 0;
+            clearHull3d();
+            updatePoints3dVisual();
+        });
+    </script>
+</body>
+</html>

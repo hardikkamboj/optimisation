@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hyperplanes & Halfspaces</title>
+    <link rel="stylesheet" href="../shared/styles.css">
+    <style>
+        body {
+            display: flex;
+            height: 100vh;
+        }
+
+        .canvas-container {
+            flex: 1;
+            position: relative;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .back-link {
+            display: inline-block;
+            color: #e94560;
+            text-decoration: none;
+            font-size: 0.85rem;
+            margin-bottom: 15px;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 8px;
+            margin: 5px 0;
+            align-items: center;
+        }
+
+        .input-row label {
+            color: #888;
+            font-size: 0.85rem;
+            min-width: 20px;
+        }
+
+        .input-row input[type="number"] {
+            flex: 1;
+        }
+
+        .slider-row {
+            margin: 10px 0;
+        }
+
+        .slider-row label {
+            display: block;
+            color: #888;
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+        }
+
+        .slider-row input[type="range"] {
+            width: 100%;
+            accent-color: #e94560;
+        }
+
+        .slider-value {
+            color: #0f9b8e;
+            font-size: 0.9rem;
+            text-align: center;
+            margin-top: 2px;
+        }
+
+        .equation {
+            text-align: center;
+            color: #0f9b8e;
+            font-size: 1rem;
+            margin: 10px 0;
+            padding: 8px;
+            background: #1a1a2e;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .halfspace-toggle {
+            display: flex;
+            gap: 0;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid #0f3460;
+            margin: 10px 0;
+        }
+
+        .hs-btn {
+            flex: 1;
+            padding: 6px;
+            margin: 0 !important;
+            width: auto !important;
+            border: none;
+            border-radius: 0;
+            background: #1a1a2e;
+            color: #888;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .hs-btn.active {
+            background: #e94560;
+            color: #fff;
+        }
+
+        .hs-btn:hover:not(.active) {
+            background: #0f3460;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <a href="../" class="back-link">&larr; Back to all visualizations</a>
+        <h1>Hyperplanes & Halfspaces</h1>
+
+        <h2>Normal Vector a</h2>
+        <div class="input-row">
+            <label>a₁</label>
+            <input type="number" id="a1" value="1" step="0.1">
+        </div>
+        <div class="input-row">
+            <label>a₂</label>
+            <input type="number" id="a2" value="1" step="0.1">
+        </div>
+        <button id="btn-random">Random a</button>
+
+        <div class="slider-row">
+            <label>b = <span id="b-display">0</span></label>
+            <input type="range" id="b-slider" min="-10" max="10" value="0" step="0.1">
+        </div>
+
+        <div class="equation" id="equation">1·x₁ + 1·x₂ = 0</div>
+
+        <h2>Show Halfspace</h2>
+        <div class="halfspace-toggle">
+            <button class="hs-btn active" id="hs-none">None</button>
+            <button class="hs-btn" id="hs-pos">aᵀx ≥ b</button>
+            <button class="hs-btn" id="hs-neg">aᵀx ≤ b</button>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: #e94560;"></div>
+                <span>Hyperplane aᵀx = b</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #ffcc00;"></div>
+                <span>Normal vector a</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: rgba(0, 255, 136, 0.15);"></div>
+                <span>Halfspace</span>
+            </div>
+        </div>
+
+        <h2>About</h2>
+        <div class="info-section">
+            <p>A <strong>hyperplane</strong> is the set { x | aᵀx = b }. In 2D this is a line.</p>
+            <br>
+            <p>A hyperplane divides space into two <strong>halfspaces</strong>:</p>
+            <br>
+            <p style="color: #0f9b8e;">{ x | aᵀx ≥ b } and { x | aᵀx ≤ b }</p>
+            <br>
+            <p>The normal vector <strong>a</strong> is perpendicular to the hyperplane and points toward the aᵀx ≥ b side.</p>
+        </div>
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        const a1Input = document.getElementById('a1');
+        const a2Input = document.getElementById('a2');
+        const bSlider = document.getElementById('b-slider');
+        const bDisplay = document.getElementById('b-display');
+        const equationEl = document.getElementById('equation');
+
+        let halfspaceMode = 'none'; // 'none', 'pos', 'neg'
+
+        // Halfspace buttons
+        const hsNone = document.getElementById('hs-none');
+        const hsPos = document.getElementById('hs-pos');
+        const hsNeg = document.getElementById('hs-neg');
+
+        hsNone.addEventListener('click', () => setHalfspace('none'));
+        hsPos.addEventListener('click', () => setHalfspace('pos'));
+        hsNeg.addEventListener('click', () => setHalfspace('neg'));
+
+        function setHalfspace(mode) {
+            halfspaceMode = mode;
+            hsNone.classList.toggle('active', mode === 'none');
+            hsPos.classList.toggle('active', mode === 'pos');
+            hsNeg.classList.toggle('active', mode === 'neg');
+            draw();
+        }
+
+        // Canvas coordinate system: origin at center, math coords
+        const SCALE = 40; // pixels per unit
+
+        function getOrigin() {
+            return { x: canvas.width / 2, y: canvas.height / 2 };
+        }
+
+        function toCanvas(mx, my) {
+            const o = getOrigin();
+            return { x: o.x + mx * SCALE, y: o.y - my * SCALE };
+        }
+
+        function resize() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            draw();
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Input handlers
+        a1Input.addEventListener('input', draw);
+        a2Input.addEventListener('input', draw);
+        bSlider.addEventListener('input', () => {
+            bDisplay.textContent = parseFloat(bSlider.value).toFixed(1);
+            draw();
+        });
+
+        document.getElementById('btn-random').addEventListener('click', () => {
+            a1Input.value = (Math.random() * 4 - 2).toFixed(1);
+            a2Input.value = (Math.random() * 4 - 2).toFixed(1);
+            draw();
+        });
+
+        function updateEquation(a1, a2, b) {
+            const sign = a2 >= 0 ? '+' : '−';
+            const a2abs = Math.abs(a2).toFixed(1);
+            equationEl.textContent = `${a1.toFixed(1)}·x₁ ${sign} ${a2abs}·x₂ = ${b.toFixed(1)}`;
+        }
+
+        // ===================== DRAWING =====================
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const o = getOrigin();
+            const a1 = parseFloat(a1Input.value) || 0;
+            const a2 = parseFloat(a2Input.value) || 0;
+            const b = parseFloat(bSlider.value) || 0;
+
+            updateEquation(a1, a2, b);
+
+            const W = canvas.width;
+            const H = canvas.height;
+
+            // Grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+            ctx.lineWidth = 1;
+            for (let px = o.x % SCALE; px < W; px += SCALE) {
+                ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, H); ctx.stroke();
+            }
+            for (let py = o.y % SCALE; py < H; py += SCALE) {
+                ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(W, py); ctx.stroke();
+            }
+
+            // Axes
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.lineWidth = 1;
+            // X axis
+            ctx.beginPath(); ctx.moveTo(0, o.y); ctx.lineTo(W, o.y); ctx.stroke();
+            // Y axis
+            ctx.beginPath(); ctx.moveTo(o.x, 0); ctx.lineTo(o.x, H); ctx.stroke();
+            // Arrowheads
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.beginPath(); ctx.moveTo(W - 2, o.y); ctx.lineTo(W - 10, o.y - 4); ctx.lineTo(W - 10, o.y + 4); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(o.x, 2); ctx.lineTo(o.x - 4, 10); ctx.lineTo(o.x + 4, 10); ctx.fill();
+            // Labels
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.font = '11px -apple-system, sans-serif';
+            ctx.fillText('x₁', W - 18, o.y + 16);
+            ctx.fillText('x₂', o.x + 8, 14);
+
+            // Tick marks
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+            ctx.font = '9px -apple-system, sans-serif';
+            const rangeX = Math.ceil(W / SCALE / 2);
+            const rangeY = Math.ceil(H / SCALE / 2);
+            for (let i = -rangeX; i <= rangeX; i++) {
+                if (i === 0) continue;
+                const px = o.x + i * SCALE;
+                ctx.beginPath(); ctx.moveTo(px, o.y - 3); ctx.lineTo(px, o.y + 3); ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.stroke();
+                ctx.fillText(i, px - 3, o.y + 14);
+            }
+            for (let i = -rangeY; i <= rangeY; i++) {
+                if (i === 0) continue;
+                const py = o.y - i * SCALE;
+                ctx.beginPath(); ctx.moveTo(o.x - 3, py); ctx.lineTo(o.x + 3, py); ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.stroke();
+                ctx.fillText(i, o.x + 6, py + 3);
+            }
+
+            const aNorm = Math.sqrt(a1 * a1 + a2 * a2);
+            if (aNorm < 1e-10) return; // degenerate
+
+            // --- Halfspace shading ---
+            if (halfspaceMode !== 'none') {
+                // Shade the halfspace by scanning pixels (efficient with imageData)
+                const imageData = ctx.getImageData(0, 0, W, H);
+                const data = imageData.data;
+                for (let py = 0; py < H; py++) {
+                    for (let px = 0; px < W; px++) {
+                        // Convert pixel to math coords
+                        const mx = (px - o.x) / SCALE;
+                        const my = (o.y - py) / SCALE;
+                        const val = a1 * mx + a2 * my;
+
+                        let inHalfspace = false;
+                        if (halfspaceMode === 'pos') inHalfspace = val >= b;
+                        else inHalfspace = val <= b;
+
+                        if (inHalfspace) {
+                            const idx = (py * W + px) * 4;
+                            data[idx] = Math.min(255, data[idx] + 0);       // R
+                            data[idx + 1] = Math.min(255, data[idx + 1] + 40); // G
+                            data[idx + 2] = Math.min(255, data[idx + 2] + 20); // B
+                            data[idx + 3] = Math.min(255, data[idx + 3] + 30); // A
+                        }
+                    }
+                }
+                ctx.putImageData(imageData, 0, 0);
+            }
+
+            // --- Hyperplane line: a1*x1 + a2*x2 = b ---
+            // Find two points on the line that are at the canvas edges
+            let linePoints = [];
+
+            if (Math.abs(a2) > 1e-10) {
+                // x2 = (b - a1*x1) / a2
+                const x1Left = (0 - o.x) / SCALE;
+                const x1Right = (W - o.x) / SCALE;
+                const x2Left = (b - a1 * x1Left) / a2;
+                const x2Right = (b - a1 * x1Right) / a2;
+                linePoints.push(toCanvas(x1Left, x2Left));
+                linePoints.push(toCanvas(x1Right, x2Right));
+            } else {
+                // Vertical line: x1 = b / a1
+                const x1 = b / a1;
+                linePoints.push(toCanvas(x1, -rangeY));
+                linePoints.push(toCanvas(x1, rangeY));
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(linePoints[0].x, linePoints[0].y);
+            ctx.lineTo(linePoints[1].x, linePoints[1].y);
+            ctx.strokeStyle = '#e94560';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // --- Normal vector a (drawn from a point on the line) ---
+            // Find the point on the line closest to origin: p = (b / ||a||^2) * a
+            const aNormSq = a1 * a1 + a2 * a2;
+            const px0 = (b * a1) / aNormSq;
+            const py0 = (b * a2) / aNormSq;
+
+            const arrowStart = toCanvas(px0, py0);
+            const arrowEnd = toCanvas(px0 + a1, py0 + a2);
+
+            // Arrow shaft
+            ctx.beginPath();
+            ctx.moveTo(arrowStart.x, arrowStart.y);
+            ctx.lineTo(arrowEnd.x, arrowEnd.y);
+            ctx.strokeStyle = '#ffcc00';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Arrowhead
+            const angle = Math.atan2(arrowStart.y - arrowEnd.y, arrowEnd.x - arrowStart.x);
+            const headLen = 10;
+            ctx.beginPath();
+            ctx.moveTo(arrowEnd.x, arrowEnd.y);
+            ctx.lineTo(
+                arrowEnd.x - headLen * Math.cos(angle - Math.PI / 6),
+                arrowEnd.y + headLen * Math.sin(angle - Math.PI / 6)
+            );
+            ctx.lineTo(
+                arrowEnd.x - headLen * Math.cos(angle + Math.PI / 6),
+                arrowEnd.y + headLen * Math.sin(angle + Math.PI / 6)
+            );
+            ctx.closePath();
+            ctx.fillStyle = '#ffcc00';
+            ctx.fill();
+
+            // Label "a" near the arrowhead
+            ctx.fillStyle = '#ffcc00';
+            ctx.font = 'bold 13px -apple-system, sans-serif';
+            ctx.fillText('a', arrowEnd.x + 8, arrowEnd.y - 8);
+
+            // Dot at the base point on the line
+            ctx.beginPath();
+            ctx.arc(arrowStart.x, arrowStart.y, 3, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffcc00';
+            ctx.fill();
+        }
+    </script>
+</body>
+</html>
