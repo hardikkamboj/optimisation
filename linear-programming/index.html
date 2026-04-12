@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linear Programming Visualization</title>
+    <link rel="stylesheet" href="../shared/styles.css">
+    <style>
+        body { display: flex; height: 100vh; }
+
+        .back-link {
+            display: inline-block; color: #e94560; text-decoration: none;
+            font-size: 0.85rem; margin-bottom: 15px;
+        }
+        .back-link:hover { text-decoration: underline; }
+
+        .add-row {
+            display: flex; gap: 4px; margin: 5px 0; align-items: center;
+        }
+        .add-row input { flex: 1; padding: 6px; font-size: 0.85rem; }
+        .add-row label { color: #888; font-size: 0.8rem; min-width: 18px; }
+
+        .ineq-type {
+            display: flex; gap: 0; border-radius: 4px; overflow: hidden;
+            border: 1px solid #0f3460; margin: 8px 0;
+        }
+        .ineq-btn {
+            flex: 1; padding: 6px; margin: 0 !important; width: auto !important;
+            border: none; border-radius: 0; background: #1a1a2e; color: #888;
+            font-size: 0.8rem; cursor: pointer; transition: all 0.3s;
+        }
+        .ineq-btn.active { background: #e94560; color: #fff; }
+        .ineq-btn:hover:not(.active) { background: #0f3460; }
+
+        .constraint-list { max-height: 150px; overflow-y: auto; margin: 10px 0; }
+        .constraint-item {
+            display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+            margin: 4px 0; background: #1a1a2e; border-radius: 4px;
+            font-size: 0.82rem; font-family: 'Courier New', monospace; color: #0f9b8e;
+        }
+        .constraint-item .remove-btn {
+            margin-left: auto; background: none; border: none; color: #e94560;
+            cursor: pointer; font-size: 1rem; padding: 0 4px;
+            width: auto !important; margin-top: 0; margin-bottom: 0;
+        }
+        .constraint-item .remove-btn:hover { color: #ff6b6b; background: none; }
+
+        .status-text { color: #888; font-size: 0.85rem; margin: 5px 0; }
+
+        .obj-display {
+            text-align: center; color: #ffcc00; font-size: 0.95rem;
+            margin: 8px 0; padding: 8px; background: #1a1a2e; border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .optimal-display {
+            text-align: center; color: #00ff88; font-size: 0.9rem;
+            margin: 8px 0; padding: 8px; background: #1a1a2e; border-radius: 4px;
+        }
+
+        .mode-tabs {
+            display: flex; gap: 0; margin-bottom: 10px; border-radius: 4px;
+            overflow: hidden; border: 1px solid #0f3460;
+        }
+        .mode-tab {
+            flex: 1; padding: 8px; margin: 0 !important; width: auto !important;
+            border: none; border-radius: 0; background: #1a1a2e; color: #888;
+            font-size: 0.9rem; cursor: pointer; transition: all 0.3s;
+        }
+        .mode-tab.active { background: #e94560; color: #fff; }
+        .mode-tab:hover:not(.active) { background: #0f3460; }
+
+        .opt-type { margin-bottom: 10px; }
+
+        .canvas-container { flex: 1; position: relative; }
+        canvas { display: block; width: 100%; height: 100%; }
+
+        #container-3d { display: none; flex: 1; position: relative; }
+        #container-3d.visible { display: block; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <a href="../" class="back-link">&larr; Back to all visualizations</a>
+        <h1>Linear Programming</h1>
+
+        <div class="mode-tabs">
+            <button class="mode-tab active" id="tab-2d">2D</button>
+            <button class="mode-tab" id="tab-3d">3D</button>
+        </div>
+
+        <h2>Objective Function</h2>
+        <div class="opt-type">
+            <div class="mode-tabs">
+                <button class="mode-tab active" id="opt-min">Minimize</button>
+                <button class="mode-tab" id="opt-max">Maximize</button>
+            </div>
+        </div>
+        <div class="add-row">
+            <label>c₁</label>
+            <input type="number" id="c1" value="1" step="0.1">
+        </div>
+        <div class="add-row">
+            <label>c₂</label>
+            <input type="number" id="c2" value="1" step="0.1">
+        </div>
+        <div class="obj-display" id="obj-display">min  1.0 x₁ + 1.0 x₂</div>
+
+        <h2>Constraints</h2>
+        <div class="add-row">
+            <label>a₁</label>
+            <input type="number" id="inp-a1" value="1" step="0.1">
+        </div>
+        <div class="add-row">
+            <label>a₂</label>
+            <input type="number" id="inp-a2" value="0" step="0.1">
+        </div>
+        <div class="add-row">
+            <label>b</label>
+            <input type="number" id="inp-b" value="4" step="0.1">
+        </div>
+        <div class="ineq-type">
+            <button class="ineq-btn active" id="ineq-leq">aᵀx ≤ b</button>
+            <button class="ineq-btn" id="ineq-geq">aᵀx ≥ b</button>
+        </div>
+        <button id="btn-add">Add Constraint</button>
+        <button id="btn-random">Add Random Constraint</button>
+
+        <p class="status-text">Constraints: <span id="constraint-count">0</span></p>
+        <div class="constraint-list" id="constraint-list"></div>
+        <button id="btn-clear">Clear All</button>
+
+        <div class="optimal-display" id="optimal-display">Add constraints to define feasible region</div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: rgba(0, 255, 136, 0.2);"></div>
+                <span>Feasible Region</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #ffcc00;"></div>
+                <span>Objective Level Curves</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #e94560;"></div>
+                <span>Optimal Point</span>
+            </div>
+        </div>
+
+        <h2>About</h2>
+        <div class="info-section">
+            <p>A <strong>linear program</strong> minimizes (or maximizes) a linear objective cᵀx subject to linear constraints Ax ≤ b.</p>
+            <br>
+            <p>The optimal solution, if it exists, occurs at a <strong>vertex</strong> of the feasible polyhedron.</p>
+        </div>
+    </div>
+
+    <!-- 2D canvas -->
+    <div class="canvas-container" id="container-2d">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <!-- 3D container -->
+    <div id="container-3d">
+        <div class="info-overlay" style="position:absolute;bottom:20px;left:20px;background:rgba(22,33,62,0.9);padding:10px 15px;border-radius:4px;font-size:0.85rem;">Drag to rotate · Scroll to zoom</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        // ===================== STATE =====================
+        let constraints = [];
+        let ineqType = 'leq';
+        let optType = 'min'; // 'min' or 'max'
+        let mode = '2d';
+
+        const SCALE = 40;
+
+        // ===================== DOM REFS =====================
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const container2d = document.getElementById('container-2d');
+        const container3d = document.getElementById('container-3d');
+        const constraintListEl = document.getElementById('constraint-list');
+        const constraintCountEl = document.getElementById('constraint-count');
+        const objDisplayEl = document.getElementById('obj-display');
+        const optimalDisplayEl = document.getElementById('optimal-display');
+        const c1Input = document.getElementById('c1');
+        const c2Input = document.getElementById('c2');
+
+        // ===================== MODE SWITCHING =====================
+        document.getElementById('tab-2d').addEventListener('click', () => switchMode('2d'));
+        document.getElementById('tab-3d').addEventListener('click', () => switchMode('3d'));
+
+        function switchMode(m) {
+            mode = m;
+            document.getElementById('tab-2d').classList.toggle('active', m === '2d');
+            document.getElementById('tab-3d').classList.toggle('active', m === '3d');
+            container2d.style.display = m === '2d' ? 'block' : 'none';
+            container3d.classList.toggle('visible', m === '3d');
+            if (m === '2d') { resize2d(); }
+            else { init3d(); resize3d(); draw3d(); }
+        }
+
+        // Opt type toggle
+        document.getElementById('opt-min').addEventListener('click', () => { optType = 'min'; document.getElementById('opt-min').classList.add('active'); document.getElementById('opt-max').classList.remove('active'); updateAll(); });
+        document.getElementById('opt-max').addEventListener('click', () => { optType = 'max'; document.getElementById('opt-max').classList.add('active'); document.getElementById('opt-min').classList.remove('active'); updateAll(); });
+
+        // Ineq toggle
+        const ineqLeq = document.getElementById('ineq-leq');
+        const ineqGeq = document.getElementById('ineq-geq');
+        ineqLeq.addEventListener('click', () => { ineqType = 'leq'; ineqLeq.classList.add('active'); ineqGeq.classList.remove('active'); });
+        ineqGeq.addEventListener('click', () => { ineqType = 'geq'; ineqGeq.classList.add('active'); ineqLeq.classList.remove('active'); });
+
+        // Objective inputs
+        c1Input.addEventListener('input', updateAll);
+        c2Input.addEventListener('input', updateAll);
+
+        // ===================== CONSTRAINTS =====================
+        document.getElementById('btn-add').addEventListener('click', () => {
+            const a1 = parseFloat(document.getElementById('inp-a1').value) || 0;
+            const a2 = parseFloat(document.getElementById('inp-a2').value) || 0;
+            const b = parseFloat(document.getElementById('inp-b').value) || 0;
+            addConstraint(a1, a2, b, ineqType);
+        });
+
+        document.getElementById('btn-random').addEventListener('click', () => {
+            const poly = computePolyhedron();
+            if (poly.length < 3) {
+                if (constraints.length === 0) {
+                    addConstraint(1, 0, 4, 'leq');
+                    addConstraint(-1, 0, 1, 'leq');
+                    addConstraint(0, 1, 3, 'leq');
+                    addConstraint(0, -1, 1, 'leq');
+                } else {
+                    const a1 = parseFloat((Math.random() * 4 - 2).toFixed(1));
+                    const a2 = parseFloat((Math.random() * 4 - 2).toFixed(1));
+                    const b = parseFloat((Math.random() * 6 - 3).toFixed(1));
+                    addConstraint(a1, a2, b, Math.random() > 0.5 ? 'leq' : 'geq');
+                }
+                return;
+            }
+            const cx = poly.reduce((s, p) => s + p.x, 0) / poly.length;
+            const cy = poly.reduce((s, p) => s + p.y, 0) / poly.length;
+            const vi = Math.floor(Math.random() * poly.length);
+            const t = 0.2 + Math.random() * 0.6;
+            const px = cx + t * (poly[vi].x - cx);
+            const py = cy + t * (poly[vi].y - cy);
+            const angle = Math.random() * Math.PI * 2;
+            const a1 = parseFloat(Math.cos(angle).toFixed(2));
+            const a2 = parseFloat(Math.sin(angle).toFixed(2));
+            const b = parseFloat((a1 * px + a2 * py).toFixed(1));
+            addConstraint(a1, a2, b, 'leq');
+        });
+
+        document.getElementById('btn-clear').addEventListener('click', () => {
+            constraints = [];
+            updateConstraintList();
+            updateAll();
+        });
+
+        function addConstraint(a1, a2, b, type) {
+            if (Math.abs(a1) < 1e-10 && Math.abs(a2) < 1e-10) return;
+            constraints.push({ a1, a2, b, type });
+            updateConstraintList();
+            updateAll();
+        }
+
+        function removeConstraint(idx) {
+            constraints.splice(idx, 1);
+            updateConstraintList();
+            updateAll();
+        }
+
+        function updateConstraintList() {
+            constraintCountEl.textContent = constraints.length;
+            constraintListEl.innerHTML = '';
+            constraints.forEach((c, i) => {
+                const div = document.createElement('div');
+                div.className = 'constraint-item';
+                const s2 = c.a2 >= 0 ? '+' : '−';
+                const ineqSign = c.type === 'leq' ? '≤' : '≥';
+                div.innerHTML = `<span>${c.a1.toFixed(1)}x₁ ${s2} ${Math.abs(c.a2).toFixed(1)}x₂ ${ineqSign} ${c.b.toFixed(1)}</span><button class="remove-btn" data-idx="${i}">&times;</button>`;
+                constraintListEl.appendChild(div);
+            });
+            constraintListEl.querySelectorAll('.remove-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => removeConstraint(parseInt(e.target.dataset.idx)));
+            });
+        }
+
+        function updateAll() {
+            const c1 = parseFloat(c1Input.value) || 0;
+            const c2 = parseFloat(c2Input.value) || 0;
+            const s2 = c2 >= 0 ? '+' : '−';
+            objDisplayEl.textContent = `${optType}  ${c1.toFixed(1)} x₁ ${s2} ${Math.abs(c2).toFixed(1)} x₂`;
+
+            if (mode === '2d') draw2d();
+            else draw3d();
+        }
+
+        // ===================== POLYHEDRON COMPUTATION =====================
+        function getNormalized() {
+            return constraints.map(c => {
+                if (c.type === 'geq') return { a1: -c.a1, a2: -c.a2, b: -c.b };
+                return { a1: c.a1, a2: c.a2, b: c.b };
+            });
+        }
+
+        function clipPolygon(polygon, a1, a2, b) {
+            if (polygon.length === 0) return [];
+            const output = [];
+            for (let i = 0; i < polygon.length; i++) {
+                const curr = polygon[i], next = polygon[(i + 1) % polygon.length];
+                const cV = a1 * curr.x + a2 * curr.y, nV = a1 * next.x + a2 * next.y;
+                const cIn = cV <= b + 1e-9, nIn = nV <= b + 1e-9;
+                if (cIn && nIn) output.push(next);
+                else if (cIn && !nIn) output.push(lineIntersect(curr, next, a1, a2, b));
+                else if (!cIn && nIn) { output.push(lineIntersect(curr, next, a1, a2, b)); output.push(next); }
+            }
+            return output;
+        }
+
+        function lineIntersect(p1, p2, a1, a2, b) {
+            const d1 = a1 * p1.x + a2 * p1.y - b, d2 = a1 * p2.x + a2 * p2.y - b;
+            const t = d1 / (d1 - d2);
+            return { x: p1.x + t * (p2.x - p1.x), y: p1.y + t * (p2.y - p1.y) };
+        }
+
+        function computePolyhedron() {
+            const norm = getNormalized();
+            if (norm.length === 0) return [];
+            const BIG = 50;
+            let polygon = [{ x: -BIG, y: -BIG }, { x: BIG, y: -BIG }, { x: BIG, y: BIG }, { x: -BIG, y: BIG }];
+            for (const c of norm) {
+                polygon = clipPolygon(polygon, c.a1, c.a2, c.b);
+                if (polygon.length === 0) return [];
+            }
+            return polygon;
+        }
+
+        // ===================== OPTIMAL POINT =====================
+        function findOptimal(poly) {
+            if (poly.length === 0) return null;
+            const c1 = parseFloat(c1Input.value) || 0;
+            const c2 = parseFloat(c2Input.value) || 0;
+
+            // Filter out bounding box vertices
+            const realVerts = poly.filter(v => Math.abs(v.x) < 49 && Math.abs(v.y) < 49);
+            if (realVerts.length === 0) return null;
+
+            let best = realVerts[0];
+            let bestVal = c1 * best.x + c2 * best.y;
+
+            for (let i = 1; i < realVerts.length; i++) {
+                const val = c1 * realVerts[i].x + c2 * realVerts[i].y;
+                if (optType === 'min' ? val < bestVal : val > bestVal) {
+                    bestVal = val;
+                    best = realVerts[i];
+                }
+            }
+            return { point: best, value: bestVal };
+        }
+
+        // ===================== 2D DRAWING =====================
+        function getOrigin() { return { x: canvas.width / 2, y: canvas.height / 2 }; }
+        function toCanvas(mx, my) { const o = getOrigin(); return { x: o.x + mx * SCALE, y: o.y - my * SCALE }; }
+
+        function resize2d() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+            draw2d();
+        }
+
+        window.addEventListener('resize', () => { if (mode === '2d') resize2d(); else resize3d(); });
+        resize2d();
+
+        const LINE_COLORS = ['#e94560','#ff6b6b','#ffa502','#ff6348','#7bed9f','#70a1ff','#5352ed','#a29bfe','#fd79a8','#00cec9','#e17055','#6c5ce7'];
+
+        function draw2d() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const o = getOrigin();
+            const W = canvas.width, H = canvas.height;
+            const c1 = parseFloat(c1Input.value) || 0;
+            const c2 = parseFloat(c2Input.value) || 0;
+
+            // Grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)'; ctx.lineWidth = 1;
+            for (let px = o.x % SCALE; px < W; px += SCALE) { ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, H); ctx.stroke(); }
+            for (let py = o.y % SCALE; py < H; py += SCALE) { ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(W, py); ctx.stroke(); }
+
+            // Axes
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(0, o.y); ctx.lineTo(W, o.y); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(o.x, 0); ctx.lineTo(o.x, H); ctx.stroke();
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.beginPath(); ctx.moveTo(W - 2, o.y); ctx.lineTo(W - 10, o.y - 4); ctx.lineTo(W - 10, o.y + 4); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(o.x, 2); ctx.lineTo(o.x - 4, 10); ctx.lineTo(o.x + 4, 10); ctx.fill();
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)'; ctx.font = '11px -apple-system, sans-serif';
+            ctx.fillText('x₁', W - 18, o.y + 16); ctx.fillText('x₂', o.x + 8, 14);
+
+            // Ticks
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.12)'; ctx.font = '9px -apple-system, sans-serif';
+            const rX = Math.ceil(W / SCALE / 2), rY = Math.ceil(H / SCALE / 2);
+            for (let i = -rX; i <= rX; i++) { if (i === 0) continue; const px = o.x + i * SCALE; ctx.beginPath(); ctx.moveTo(px, o.y - 3); ctx.lineTo(px, o.y + 3); ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.stroke(); ctx.fillText(i, px - 3, o.y + 14); }
+            for (let i = -rY; i <= rY; i++) { if (i === 0) continue; const py = o.y - i * SCALE; ctx.beginPath(); ctx.moveTo(o.x - 3, py); ctx.lineTo(o.x + 3, py); ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.stroke(); ctx.fillText(i, o.x + 6, py + 3); }
+
+            // Level curves of the objective function
+            if (Math.abs(c1) > 1e-10 || Math.abs(c2) > 1e-10) {
+                for (let level = -20; level <= 20; level += 1) {
+                    // c1*x1 + c2*x2 = level
+                    let lp = [];
+                    if (Math.abs(c2) > 1e-10) {
+                        const x1L = (0 - o.x) / SCALE, x1R = (W - o.x) / SCALE;
+                        lp.push(toCanvas(x1L, (level - c1 * x1L) / c2));
+                        lp.push(toCanvas(x1R, (level - c1 * x1R) / c2));
+                    } else {
+                        const x1 = level / c1;
+                        lp.push(toCanvas(x1, -rY)); lp.push(toCanvas(x1, rY));
+                    }
+                    ctx.beginPath(); ctx.moveTo(lp[0].x, lp[0].y); ctx.lineTo(lp[1].x, lp[1].y);
+                    ctx.strokeStyle = 'rgba(255, 204, 0, 0.08)'; ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+            }
+
+            // Feasible region
+            const poly = computePolyhedron();
+            if (poly.length >= 3) {
+                ctx.beginPath();
+                const first = toCanvas(poly[0].x, poly[0].y);
+                ctx.moveTo(first.x, first.y);
+                for (let i = 1; i < poly.length; i++) { const p = toCanvas(poly[i].x, poly[i].y); ctx.lineTo(p.x, p.y); }
+                ctx.closePath();
+                ctx.fillStyle = 'rgba(0, 255, 136, 0.12)';
+                ctx.fill();
+                ctx.beginPath(); ctx.moveTo(first.x, first.y);
+                for (let i = 1; i < poly.length; i++) { const p = toCanvas(poly[i].x, poly[i].y); ctx.lineTo(p.x, p.y); }
+                ctx.closePath(); ctx.strokeStyle = '#00ff88'; ctx.lineWidth = 2; ctx.stroke();
+
+                // Vertices
+                for (const v of poly) {
+                    if (Math.abs(v.x) > 49 || Math.abs(v.y) > 49) continue;
+                    const p = toCanvas(v.x, v.y);
+                    ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                    ctx.fillStyle = '#00ff88'; ctx.fill();
+                }
+            }
+
+            // Constraint lines
+            for (let i = 0; i < constraints.length; i++) {
+                const c = constraints[i];
+                const color = LINE_COLORS[i % LINE_COLORS.length];
+                let lp = [];
+                if (Math.abs(c.a2) > 1e-10) {
+                    const x1L = (0 - o.x) / SCALE, x1R = (W - o.x) / SCALE;
+                    lp.push(toCanvas(x1L, (c.b - c.a1 * x1L) / c.a2));
+                    lp.push(toCanvas(x1R, (c.b - c.a1 * x1R) / c.a2));
+                } else if (Math.abs(c.a1) > 1e-10) {
+                    lp.push(toCanvas(c.b / c.a1, -rY)); lp.push(toCanvas(c.b / c.a1, rY));
+                } else { continue; }
+                ctx.beginPath(); ctx.moveTo(lp[0].x, lp[0].y); ctx.lineTo(lp[1].x, lp[1].y);
+                ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+                ctx.setLineDash([6, 4]); ctx.stroke(); ctx.setLineDash([]);
+            }
+
+            // Optimal point & level curve
+            const opt = findOptimal(poly);
+            if (opt) {
+                // Optimal level curve (bold)
+                if (Math.abs(c1) > 1e-10 || Math.abs(c2) > 1e-10) {
+                    let lp = [];
+                    if (Math.abs(c2) > 1e-10) {
+                        const x1L = (0 - o.x) / SCALE, x1R = (W - o.x) / SCALE;
+                        lp.push(toCanvas(x1L, (opt.value - c1 * x1L) / c2));
+                        lp.push(toCanvas(x1R, (opt.value - c1 * x1R) / c2));
+                    } else {
+                        lp.push(toCanvas(opt.value / c1, -rY)); lp.push(toCanvas(opt.value / c1, rY));
+                    }
+                    ctx.beginPath(); ctx.moveTo(lp[0].x, lp[0].y); ctx.lineTo(lp[1].x, lp[1].y);
+                    ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 2; ctx.stroke();
+                }
+
+                // Optimal point
+                const op = toCanvas(opt.point.x, opt.point.y);
+                ctx.beginPath(); ctx.arc(op.x, op.y, 7, 0, Math.PI * 2);
+                ctx.fillStyle = '#e94560'; ctx.fill();
+                ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+
+                // Label
+                ctx.fillStyle = '#fff'; ctx.font = 'bold 12px -apple-system, sans-serif';
+                ctx.fillText(`(${opt.point.x.toFixed(1)}, ${opt.point.y.toFixed(1)})`, op.x + 12, op.y - 10);
+                ctx.fillStyle = '#ffcc00'; ctx.font = '11px -apple-system, sans-serif';
+                ctx.fillText(`cᵀx = ${opt.value.toFixed(2)}`, op.x + 12, op.y + 6);
+
+                optimalDisplayEl.innerHTML = `Optimal: (${opt.point.x.toFixed(2)}, ${opt.point.y.toFixed(2)})<br>cᵀx* = ${opt.value.toFixed(2)}`;
+            } else {
+                optimalDisplayEl.textContent = poly.length > 0 ? 'Unbounded or at boundary' : 'Add constraints to define feasible region';
+            }
+        }
+
+        // ===================== 3D MODE =====================
+        let scene, camera, renderer, orbitControls;
+        let initialized3d = false;
+        let meshes3d = [];
+
+        function init3d() {
+            if (initialized3d) return;
+            initialized3d = true;
+
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(50, container3d.clientWidth / container3d.clientHeight, 0.1, 1000);
+            camera.position.set(10, 8, 10);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setClearColor(0x1a1a2e);
+            container3d.appendChild(renderer.domElement);
+
+            orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
+            orbitControls.enableDamping = true;
+
+            // Axes (both directions)
+            const axesLen = 8;
+            const colors = [0xff4444, 0x44ff44, 0x4444ff];
+            const posDirs = [[axesLen,0,0],[0,axesLen,0],[0,0,axesLen]];
+            const negDirs = [[-axesLen,0,0],[0,-axesLen,0],[0,0,-axesLen]];
+            for (let i = 0; i < 3; i++) {
+                const geo = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(...negDirs[i]), new THREE.Vector3(...posDirs[i])
+                ]);
+                scene.add(new THREE.Line(geo, new THREE.LineBasicMaterial({ color: colors[i] })));
+            }
+
+            // Axis labels would go here but Three.js text is complex; skip for clarity
+
+            // Grid on x-z plane (x₁-x₂ plane at y=0)
+            const gridGeo = new THREE.BufferGeometry();
+            const gv = [];
+            for (let i = -8; i <= 8; i++) {
+                gv.push(i, 0, -8, i, 0, 8);
+                gv.push(-8, 0, i, 8, 0, i);
+            }
+            gridGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(gv), 3));
+            scene.add(new THREE.LineSegments(gridGeo, new THREE.LineBasicMaterial({ color: 0x0f3460, transparent: true, opacity: 0.2 })));
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+            const dl = new THREE.DirectionalLight(0xffffff, 0.8);
+            dl.position.set(5, 10, 5);
+            scene.add(dl);
+
+            resize3d();
+            animate3d();
+        }
+
+        function resize3d() {
+            if (!renderer) return;
+            renderer.setSize(container3d.clientWidth, container3d.clientHeight);
+            camera.aspect = container3d.clientWidth / container3d.clientHeight;
+            camera.updateProjectionMatrix();
+        }
+
+        function animate3d() {
+            requestAnimationFrame(animate3d);
+            if (orbitControls) orbitControls.update();
+            if (renderer) renderer.render(scene, camera);
+        }
+
+        function clear3d() {
+            for (const obj of meshes3d) {
+                scene.remove(obj);
+                if (obj.geometry) obj.geometry.dispose();
+                if (obj.material) obj.material.dispose();
+            }
+            meshes3d = [];
+        }
+
+        function draw3d() {
+            if (!initialized3d) return;
+            clear3d();
+
+            const c1 = parseFloat(c1Input.value) || 0;
+            const c2 = parseFloat(c2Input.value) || 0;
+            const poly = computePolyhedron();
+
+            // 1. Draw the objective surface: y = c1*x + c2*z (using x=x₁, z=x₂, y=objective)
+            const PLANE_SIZE = 16;
+            const planeGeo = new THREE.PlaneGeometry(PLANE_SIZE, PLANE_SIZE, 40, 40);
+            const positions = planeGeo.attributes.position;
+
+            // PlaneGeometry is in XY, we want to map it to: x₁ along X, x₂ along Z, f(x) along Y
+            for (let i = 0; i < positions.count; i++) {
+                const x = positions.getX(i); // x₁
+                const y = positions.getY(i); // will become x₂ (mapped to Z)
+                const fVal = c1 * x + c2 * y; // objective value
+                positions.setXYZ(i, x, fVal, y); // X=x₁, Y=f, Z=x₂
+            }
+            planeGeo.computeVertexNormals();
+
+            const planeMat = new THREE.MeshPhongMaterial({
+                color: 0xffcc00,
+                transparent: true,
+                opacity: 0.12,
+                side: THREE.DoubleSide,
+            });
+            const planeMesh = new THREE.Mesh(planeGeo, planeMat);
+            scene.add(planeMesh);
+            meshes3d.push(planeMesh);
+
+            // Wireframe of the plane
+            const wireGeo = new THREE.WireframeGeometry(planeGeo);
+            const wireMesh = new THREE.LineSegments(wireGeo, new THREE.LineBasicMaterial({ color: 0xffcc00, transparent: true, opacity: 0.06 }));
+            scene.add(wireMesh);
+            meshes3d.push(wireMesh);
+
+            if (poly.length < 3) return;
+
+            // 2. Feasible region on the x₁-x₂ plane (y=0)
+            const feasVerts = [];
+            const realPoly = poly.filter(v => Math.abs(v.x) < 49 && Math.abs(v.y) < 49);
+            // Use full poly for the shape, but with clamping
+            const cx = poly.reduce((s, p) => s + p.x, 0) / poly.length;
+            const cy = poly.reduce((s, p) => s + p.y, 0) / poly.length;
+
+            // Triangulate the polygon (fan from centroid)
+            const feasGeoVerts = [];
+            for (let i = 0; i < poly.length; i++) {
+                const curr = poly[i], next = poly[(i + 1) % poly.length];
+                feasGeoVerts.push(cx, 0, cy);
+                feasGeoVerts.push(curr.x, 0, curr.y);
+                feasGeoVerts.push(next.x, 0, next.y);
+            }
+            const feasGeo = new THREE.BufferGeometry();
+            feasGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(feasGeoVerts), 3));
+            feasGeo.computeVertexNormals();
+            const feasMesh = new THREE.Mesh(feasGeo, new THREE.MeshPhongMaterial({
+                color: 0x00ff88, transparent: true, opacity: 0.25, side: THREE.DoubleSide,
+            }));
+            scene.add(feasMesh);
+            meshes3d.push(feasMesh);
+
+            // Feasible region border on ground
+            const borderVerts = [];
+            for (let i = 0; i < poly.length; i++) {
+                borderVerts.push(new THREE.Vector3(poly[i].x, 0, poly[i].y));
+            }
+            borderVerts.push(borderVerts[0].clone());
+            const borderGeo = new THREE.BufferGeometry().setFromPoints(borderVerts);
+            const borderLine = new THREE.Line(borderGeo, new THREE.LineBasicMaterial({ color: 0x00ff88 }));
+            scene.add(borderLine);
+            meshes3d.push(borderLine);
+
+            // 3. Feasible region lifted onto the objective surface
+            const liftedGeoVerts = [];
+            for (let i = 0; i < poly.length; i++) {
+                const curr = poly[i], next = poly[(i + 1) % poly.length];
+                const fCx = c1 * cx + c2 * cy;
+                const fCurr = c1 * curr.x + c2 * curr.y;
+                const fNext = c1 * next.x + c2 * next.y;
+                liftedGeoVerts.push(cx, fCx, cy);
+                liftedGeoVerts.push(curr.x, fCurr, curr.y);
+                liftedGeoVerts.push(next.x, fNext, next.y);
+            }
+            const liftedGeo = new THREE.BufferGeometry();
+            liftedGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(liftedGeoVerts), 3));
+            liftedGeo.computeVertexNormals();
+            const liftedMesh = new THREE.Mesh(liftedGeo, new THREE.MeshPhongMaterial({
+                color: 0x00ff88, transparent: true, opacity: 0.4, side: THREE.DoubleSide,
+            }));
+            scene.add(liftedMesh);
+            meshes3d.push(liftedMesh);
+
+            // Lifted border
+            const liftedBorderVerts = [];
+            for (let i = 0; i < poly.length; i++) {
+                const v = poly[i];
+                liftedBorderVerts.push(new THREE.Vector3(v.x, c1 * v.x + c2 * v.y, v.y));
+            }
+            liftedBorderVerts.push(liftedBorderVerts[0].clone());
+            const liftedBorderGeo = new THREE.BufferGeometry().setFromPoints(liftedBorderVerts);
+            const liftedBorderLine = new THREE.Line(liftedBorderGeo, new THREE.LineBasicMaterial({ color: 0x00ff88, linewidth: 2 }));
+            scene.add(liftedBorderLine);
+            meshes3d.push(liftedBorderLine);
+
+            // 4. Vertical lines connecting ground polygon to lifted polygon (walls)
+            for (let i = 0; i < poly.length; i++) {
+                const v = poly[i];
+                const fv = c1 * v.x + c2 * v.y;
+                const wallGeo = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(v.x, 0, v.y),
+                    new THREE.Vector3(v.x, fv, v.y),
+                ]);
+                const wallLine = new THREE.Line(wallGeo, new THREE.LineBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.3 }));
+                scene.add(wallLine);
+                meshes3d.push(wallLine);
+            }
+
+            // 5. Optimal point
+            const opt = findOptimal(poly);
+            if (opt) {
+                const ov = opt.point;
+                const fOpt = opt.value;
+
+                // Sphere on the surface
+                const sphereGeo = new THREE.SphereGeometry(0.15, 16, 16);
+                const sphereMat = new THREE.MeshPhongMaterial({ color: 0xe94560 });
+                const sphere = new THREE.Mesh(sphereGeo, sphereMat);
+                sphere.position.set(ov.x, fOpt, ov.y);
+                scene.add(sphere);
+                meshes3d.push(sphere);
+
+                // Vertical line from ground to optimal
+                const optLineGeo = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(ov.x, 0, ov.y),
+                    new THREE.Vector3(ov.x, fOpt, ov.y),
+                ]);
+                const optLine = new THREE.Line(optLineGeo, new THREE.LineBasicMaterial({ color: 0xe94560 }));
+                scene.add(optLine);
+                meshes3d.push(optLine);
+
+                // Sphere on the ground
+                const groundSphere = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), new THREE.MeshPhongMaterial({ color: 0xe94560 }));
+                groundSphere.position.set(ov.x, 0, ov.y);
+                scene.add(groundSphere);
+                meshes3d.push(groundSphere);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Polyhedra Visualization</title>
+    <link rel="stylesheet" href="../shared/styles.css">
+    <style>
+        body {
+            display: flex;
+            height: 100vh;
+        }
+
+        .canvas-container {
+            flex: 1;
+            position: relative;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .back-link {
+            display: inline-block;
+            color: #e94560;
+            text-decoration: none;
+            font-size: 0.85rem;
+            margin-bottom: 15px;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .constraint-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+
+        .constraint-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 8px;
+            margin: 4px 0;
+            background: #1a1a2e;
+            border-radius: 4px;
+            font-size: 0.82rem;
+            font-family: 'Courier New', monospace;
+            color: #0f9b8e;
+        }
+
+        .constraint-item .remove-btn {
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: #e94560;
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 0 4px;
+            width: auto !important;
+            margin-top: 0;
+            margin-bottom: 0;
+        }
+
+        .constraint-item .remove-btn:hover {
+            color: #ff6b6b;
+            background: none;
+        }
+
+        .add-row {
+            display: flex;
+            gap: 4px;
+            margin: 5px 0;
+            align-items: center;
+        }
+
+        .add-row input {
+            flex: 1;
+            padding: 6px;
+            font-size: 0.85rem;
+        }
+
+        .add-row label {
+            color: #888;
+            font-size: 0.8rem;
+            min-width: 18px;
+        }
+
+        .ineq-type {
+            display: flex;
+            gap: 0;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid #0f3460;
+            margin: 8px 0;
+        }
+
+        .ineq-btn {
+            flex: 1;
+            padding: 6px;
+            margin: 0 !important;
+            width: auto !important;
+            border: none;
+            border-radius: 0;
+            background: #1a1a2e;
+            color: #888;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .ineq-btn.active {
+            background: #e94560;
+            color: #fff;
+        }
+
+        .ineq-btn:hover:not(.active) {
+            background: #0f3460;
+        }
+
+        .status-text {
+            color: #888;
+            font-size: 0.85rem;
+            margin: 5px 0;
+        }
+
+        .mode-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid #0f3460;
+        }
+
+        .mode-tab {
+            flex: 1;
+            padding: 8px;
+            margin: 0 !important;
+            width: auto !important;
+            border: none;
+            border-radius: 0;
+            background: #1a1a2e;
+            color: #888;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .mode-tab.active {
+            background: #e94560;
+            color: #fff;
+        }
+
+        .mode-tab:hover:not(.active) {
+            background: #0f3460;
+        }
+
+        #container-3d {
+            display: none;
+            flex: 1;
+            position: relative;
+        }
+
+        #container-3d.visible {
+            display: block;
+        }
+
+        .controls-3d { display: none; }
+        .controls-3d.visible { display: block; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <a href="../" class="back-link">&larr; Back to all visualizations</a>
+        <h1>Polyhedra</h1>
+
+        <div class="mode-tabs">
+            <button class="mode-tab active" id="tab-2d">2D</button>
+            <button class="mode-tab" id="tab-3d">3D</button>
+        </div>
+
+        <!-- 2D controls -->
+        <div id="controls-2d">
+            <h2>Add Constraint</h2>
+            <div class="info-section">
+                <p>Each constraint defines a halfspace. The polyhedron is their intersection.</p>
+            </div>
+
+            <div class="add-row">
+                <label>a₁</label>
+                <input type="number" id="inp-a1" value="1" step="0.1">
+            </div>
+            <div class="add-row">
+                <label>a₂</label>
+                <input type="number" id="inp-a2" value="0" step="0.1">
+            </div>
+            <div class="add-row">
+                <label>b</label>
+                <input type="number" id="inp-b" value="3" step="0.1">
+            </div>
+
+            <div class="ineq-type">
+                <button class="ineq-btn active" id="ineq-leq">aᵀx ≤ b</button>
+                <button class="ineq-btn" id="ineq-geq">aᵀx ≥ b</button>
+            </div>
+
+            <button id="btn-add">Add Constraint</button>
+            <button id="btn-random">Add Random Constraint</button>
+
+            <p class="status-text">Constraints: <span id="constraint-count">0</span></p>
+
+            <h2>Constraints</h2>
+            <div class="constraint-list" id="constraint-list"></div>
+
+            <button id="btn-clear">Clear All</button>
+        </div>
+
+        <!-- 3D controls -->
+        <div id="controls-3d" class="controls-3d">
+            <h2>Add Constraint</h2>
+            <div class="info-section">
+                <p>Each constraint defines a halfspace in 3D. The polyhedron is their intersection. Drag to rotate, scroll to zoom.</p>
+            </div>
+
+            <div class="add-row">
+                <label>a₁</label>
+                <input type="number" id="inp-a1-3d" value="1" step="0.1">
+            </div>
+            <div class="add-row">
+                <label>a₂</label>
+                <input type="number" id="inp-a2-3d" value="0" step="0.1">
+            </div>
+            <div class="add-row">
+                <label>a₃</label>
+                <input type="number" id="inp-a3-3d" value="0" step="0.1">
+            </div>
+            <div class="add-row">
+                <label>b</label>
+                <input type="number" id="inp-b-3d" value="3" step="0.1">
+            </div>
+
+            <div class="ineq-type">
+                <button class="ineq-btn active" id="ineq-leq-3d">aᵀx ≤ b</button>
+                <button class="ineq-btn" id="ineq-geq-3d">aᵀx ≥ b</button>
+            </div>
+
+            <button id="btn-add-3d">Add Constraint</button>
+            <button id="btn-random-3d">Add Random Constraint</button>
+
+            <p class="status-text">Constraints: <span id="constraint-count-3d">0</span></p>
+
+            <h2>Constraints</h2>
+            <div class="constraint-list" id="constraint-list-3d"></div>
+
+            <button id="btn-clear-3d">Clear All</button>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: rgba(0, 255, 136, 0.2);"></div>
+                <span>Feasible Region (Polyhedron)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #e94560;"></div>
+                <span>Constraint Boundaries</span>
+            </div>
+        </div>
+
+        <h2>About</h2>
+        <div class="info-section">
+            <p>A <strong>polyhedron</strong> is the intersection of finitely many halfspaces:</p>
+            <br>
+            <p style="text-align: center; color: #0f9b8e;">P = { x | Ax ≤ b }</p>
+            <br>
+            <p>Each row aᵢᵀx ≤ bᵢ defines one halfspace. The feasible region is the set of all points satisfying every constraint simultaneously.</p>
+        </div>
+    </div>
+
+    <!-- 2D canvas -->
+    <div class="canvas-container" id="container-2d">
+        <canvas id="canvas"></canvas>
+        <div class="info-overlay" style="position:absolute;bottom:20px;left:20px;background:rgba(22,33,62,0.9);padding:10px 15px;border-radius:4px;font-size:0.85rem;">Add constraints to define a polyhedron</div>
+    </div>
+
+    <!-- 3D container -->
+    <div id="container-3d">
+        <div class="info-overlay" style="position:absolute;bottom:20px;left:20px;background:rgba(22,33,62,0.9);padding:10px 15px;border-radius:4px;font-size:0.85rem;">Drag to rotate · Scroll to zoom</div>
+    </div>
+
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        // ===================== MODE SWITCHING =====================
+        const tab2d = document.getElementById('tab-2d');
+        const tab3d = document.getElementById('tab-3d');
+        const controls2dEl = document.getElementById('controls-2d');
+        const controls3dEl = document.getElementById('controls-3d');
+        const container2d = document.getElementById('container-2d');
+        const container3d = document.getElementById('container-3d');
+
+        let mode = '2d';
+
+        tab2d.addEventListener('click', () => switchMode('2d'));
+        tab3d.addEventListener('click', () => switchMode('3d'));
+
+        function switchMode(m) {
+            mode = m;
+            tab2d.classList.toggle('active', m === '2d');
+            tab3d.classList.toggle('active', m === '3d');
+            controls2dEl.style.display = m === '2d' ? 'block' : 'none';
+            controls3dEl.classList.toggle('visible', m === '3d');
+            container2d.style.display = m === '2d' ? 'block' : 'none';
+            container3d.classList.toggle('visible', m === '3d');
+
+            if (m === '2d') {
+                resize2d();
+            } else {
+                init3d();
+                resize3d();
+            }
+        }
+
+        // ===================== 2D MODE =====================
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const constraintListEl = document.getElementById('constraint-list');
+        const constraintCountEl = document.getElementById('constraint-count');
+
+        const SCALE = 40;
+
+        let constraints2d = [];
+        let ineqType2d = 'leq';
+
+        const ineqLeq = document.getElementById('ineq-leq');
+        const ineqGeq = document.getElementById('ineq-geq');
+        ineqLeq.addEventListener('click', () => { ineqType2d = 'leq'; ineqLeq.classList.add('active'); ineqGeq.classList.remove('active'); });
+        ineqGeq.addEventListener('click', () => { ineqType2d = 'geq'; ineqGeq.classList.add('active'); ineqLeq.classList.remove('active'); });
+
+        function getOrigin() {
+            return { x: canvas.width / 2, y: canvas.height / 2 };
+        }
+
+        function toCanvas(mx, my) {
+            const o = getOrigin();
+            return { x: o.x + mx * SCALE, y: o.y - my * SCALE };
+        }
+
+        function resize2d() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            draw2d();
+        }
+
+        window.addEventListener('resize', () => {
+            if (mode === '2d') resize2d();
+            else resize3d();
+        });
+        resize2d();
+
+        document.getElementById('btn-add').addEventListener('click', () => {
+            const a1 = parseFloat(document.getElementById('inp-a1').value) || 0;
+            const a2 = parseFloat(document.getElementById('inp-a2').value) || 0;
+            const b = parseFloat(document.getElementById('inp-b').value) || 0;
+            addConstraint2d(a1, a2, b, ineqType2d);
+        });
+
+        document.getElementById('btn-random').addEventListener('click', () => {
+            const poly = computePolyhedron2d();
+
+            if (poly.length < 3) {
+                // No feasible region yet — seed a bounding box
+                if (constraints2d.length === 0) {
+                    addConstraint2d(1, 0, 4, 'leq');
+                    addConstraint2d(-1, 0, 4, 'leq');
+                    addConstraint2d(0, 1, 4, 'leq');
+                    addConstraint2d(0, -1, 4, 'leq');
+                } else {
+                    // Constraints exist but no intersection — just add random
+                    const a1 = parseFloat((Math.random() * 4 - 2).toFixed(1));
+                    const a2 = parseFloat((Math.random() * 4 - 2).toFixed(1));
+                    const b = parseFloat((Math.random() * 6 - 3).toFixed(1));
+                    addConstraint2d(a1, a2, b, Math.random() > 0.5 ? 'leq' : 'geq');
+                }
+                return;
+            }
+
+            // Pick a random interior point (centroid blended toward a random vertex)
+            const cx = poly.reduce((s, p) => s + p.x, 0) / poly.length;
+            const cy = poly.reduce((s, p) => s + p.y, 0) / poly.length;
+            const vi = Math.floor(Math.random() * poly.length);
+            const t = 0.2 + Math.random() * 0.6;
+            const px = cx + t * (poly[vi].x - cx);
+            const py = cy + t * (poly[vi].y - cy);
+
+            // Random normal direction
+            const angle = Math.random() * Math.PI * 2;
+            const a1 = parseFloat(Math.cos(angle).toFixed(2));
+            const a2 = parseFloat(Math.sin(angle).toFixed(2));
+
+            // b = aᵀp so the line passes through the interior point
+            const b = parseFloat((a1 * px + a2 * py).toFixed(1));
+            addConstraint2d(a1, a2, b, 'leq');
+        });
+
+        document.getElementById('btn-clear').addEventListener('click', () => {
+            constraints2d = [];
+            updateConstraintList2d();
+            draw2d();
+        });
+
+        function addConstraint2d(a1, a2, b, type) {
+            if (Math.abs(a1) < 1e-10 && Math.abs(a2) < 1e-10) return;
+            constraints2d.push({ a1, a2, b, type });
+            updateConstraintList2d();
+            draw2d();
+        }
+
+        function removeConstraint2d(idx) {
+            constraints2d.splice(idx, 1);
+            updateConstraintList2d();
+            draw2d();
+        }
+
+        function updateConstraintList2d() {
+            constraintCountEl.textContent = constraints2d.length;
+            constraintListEl.innerHTML = '';
+            constraints2d.forEach((c, i) => {
+                const div = document.createElement('div');
+                div.className = 'constraint-item';
+                const sign2 = c.a2 >= 0 ? '+' : '−';
+                const a2abs = Math.abs(c.a2).toFixed(1);
+                const ineqSign = c.type === 'leq' ? '≤' : '≥';
+                div.innerHTML = `
+                    <span>${c.a1.toFixed(1)}x₁ ${sign2} ${a2abs}x₂ ${ineqSign} ${c.b.toFixed(1)}</span>
+                    <button class="remove-btn" data-idx="${i}">&times;</button>
+                `;
+                constraintListEl.appendChild(div);
+            });
+            constraintListEl.querySelectorAll('.remove-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    removeConstraint2d(parseInt(e.target.dataset.idx));
+                });
+            });
+        }
+
+        // Sutherland-Hodgman clipping
+        function getNormalized2d() {
+            return constraints2d.map(c => {
+                if (c.type === 'geq') return { a1: -c.a1, a2: -c.a2, b: -c.b };
+                return { a1: c.a1, a2: c.a2, b: c.b };
+            });
+        }
+
+        function clipPolygon(polygon, a1, a2, b) {
+            if (polygon.length === 0) return [];
+            const output = [];
+            for (let i = 0; i < polygon.length; i++) {
+                const curr = polygon[i];
+                const next = polygon[(i + 1) % polygon.length];
+                const currVal = a1 * curr.x + a2 * curr.y;
+                const nextVal = a1 * next.x + a2 * next.y;
+                const currIn = currVal <= b + 1e-9;
+                const nextIn = nextVal <= b + 1e-9;
+                if (currIn && nextIn) {
+                    output.push(next);
+                } else if (currIn && !nextIn) {
+                    output.push(lineIntersect(curr, next, a1, a2, b));
+                } else if (!currIn && nextIn) {
+                    output.push(lineIntersect(curr, next, a1, a2, b));
+                    output.push(next);
+                }
+            }
+            return output;
+        }
+
+        function lineIntersect(p1, p2, a1, a2, b) {
+            const d1 = a1 * p1.x + a2 * p1.y - b;
+            const d2 = a1 * p2.x + a2 * p2.y - b;
+            const t = d1 / (d1 - d2);
+            return { x: p1.x + t * (p2.x - p1.x), y: p1.y + t * (p2.y - p1.y) };
+        }
+
+        function computePolyhedron2d() {
+            const norm = getNormalized2d();
+            if (norm.length === 0) return [];
+            const BIG = 50;
+            let polygon = [{ x: -BIG, y: -BIG }, { x: BIG, y: -BIG }, { x: BIG, y: BIG }, { x: -BIG, y: BIG }];
+            for (const c of norm) {
+                polygon = clipPolygon(polygon, c.a1, c.a2, c.b);
+                if (polygon.length === 0) return [];
+            }
+            return polygon;
+        }
+
+        const LINE_COLORS = [
+            '#e94560', '#ff6b6b', '#ffa502', '#ff6348',
+            '#7bed9f', '#70a1ff', '#5352ed', '#a29bfe',
+            '#fd79a8', '#00cec9', '#e17055', '#6c5ce7',
+        ];
+
+        function draw2d() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const o = getOrigin();
+            const W = canvas.width;
+            const H = canvas.height;
+
+            // Grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+            ctx.lineWidth = 1;
+            for (let px = o.x % SCALE; px < W; px += SCALE) {
+                ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, H); ctx.stroke();
+            }
+            for (let py = o.y % SCALE; py < H; py += SCALE) {
+                ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(W, py); ctx.stroke();
+            }
+
+            // Axes
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(0, o.y); ctx.lineTo(W, o.y); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(o.x, 0); ctx.lineTo(o.x, H); ctx.stroke();
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.beginPath(); ctx.moveTo(W - 2, o.y); ctx.lineTo(W - 10, o.y - 4); ctx.lineTo(W - 10, o.y + 4); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(o.x, 2); ctx.lineTo(o.x - 4, 10); ctx.lineTo(o.x + 4, 10); ctx.fill();
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.font = '11px -apple-system, sans-serif';
+            ctx.fillText('x₁', W - 18, o.y + 16);
+            ctx.fillText('x₂', o.x + 8, 14);
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+            ctx.font = '9px -apple-system, sans-serif';
+            const rangeX = Math.ceil(W / SCALE / 2);
+            const rangeY = Math.ceil(H / SCALE / 2);
+            for (let i = -rangeX; i <= rangeX; i++) {
+                if (i === 0) continue;
+                const px = o.x + i * SCALE;
+                ctx.beginPath(); ctx.moveTo(px, o.y - 3); ctx.lineTo(px, o.y + 3); ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.stroke();
+                ctx.fillText(i, px - 3, o.y + 14);
+            }
+            for (let i = -rangeY; i <= rangeY; i++) {
+                if (i === 0) continue;
+                const py = o.y - i * SCALE;
+                ctx.beginPath(); ctx.moveTo(o.x - 3, py); ctx.lineTo(o.x + 3, py); ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.stroke();
+                ctx.fillText(i, o.x + 6, py + 3);
+            }
+
+            const poly = computePolyhedron2d();
+
+            if (poly.length >= 3) {
+                ctx.beginPath();
+                const first = toCanvas(poly[0].x, poly[0].y);
+                ctx.moveTo(first.x, first.y);
+                for (let i = 1; i < poly.length; i++) { const p = toCanvas(poly[i].x, poly[i].y); ctx.lineTo(p.x, p.y); }
+                ctx.closePath();
+                ctx.fillStyle = 'rgba(0, 255, 136, 0.12)';
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.moveTo(first.x, first.y);
+                for (let i = 1; i < poly.length; i++) { const p = toCanvas(poly[i].x, poly[i].y); ctx.lineTo(p.x, p.y); }
+                ctx.closePath();
+                ctx.strokeStyle = '#00ff88';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                for (const v of poly) {
+                    const p = toCanvas(v.x, v.y);
+                    if (Math.abs(v.x) > 49 || Math.abs(v.y) > 49) continue;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                    ctx.fillStyle = '#00ff88';
+                    ctx.fill();
+                }
+            }
+
+            for (let i = 0; i < constraints2d.length; i++) {
+                const c = constraints2d[i];
+                const color = LINE_COLORS[i % LINE_COLORS.length];
+                const a1 = c.a1, a2 = c.a2, b = c.b;
+                let lp = [];
+                if (Math.abs(a2) > 1e-10) {
+                    const x1L = (0 - o.x) / SCALE, x1R = (W - o.x) / SCALE;
+                    lp.push(toCanvas(x1L, (b - a1 * x1L) / a2));
+                    lp.push(toCanvas(x1R, (b - a1 * x1R) / a2));
+                } else if (Math.abs(a1) > 1e-10) {
+                    const x1 = b / a1;
+                    lp.push(toCanvas(x1, -rangeY)); lp.push(toCanvas(x1, rangeY));
+                } else { continue; }
+                ctx.beginPath();
+                ctx.moveTo(lp[0].x, lp[0].y); ctx.lineTo(lp[1].x, lp[1].y);
+                ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+                ctx.setLineDash([6, 4]); ctx.stroke(); ctx.setLineDash([]);
+            }
+        }
+
+        // ===================== 3D MODE =====================
+        let scene, camera, renderer, orbitControls;
+        let initialized3d = false;
+        let constraints3d = [];
+        let ineqType3d = 'leq';
+        let polyMeshes3d = []; // all 3d objects to clean up
+
+        const ineqLeq3d = document.getElementById('ineq-leq-3d');
+        const ineqGeq3d = document.getElementById('ineq-geq-3d');
+        ineqLeq3d.addEventListener('click', () => { ineqType3d = 'leq'; ineqLeq3d.classList.add('active'); ineqGeq3d.classList.remove('active'); });
+        ineqGeq3d.addEventListener('click', () => { ineqType3d = 'geq'; ineqGeq3d.classList.add('active'); ineqLeq3d.classList.remove('active'); });
+
+        const constraintList3dEl = document.getElementById('constraint-list-3d');
+        const constraintCount3dEl = document.getElementById('constraint-count-3d');
+
+        document.getElementById('btn-add-3d').addEventListener('click', () => {
+            const a1 = parseFloat(document.getElementById('inp-a1-3d').value) || 0;
+            const a2 = parseFloat(document.getElementById('inp-a2-3d').value) || 0;
+            const a3 = parseFloat(document.getElementById('inp-a3-3d').value) || 0;
+            const b = parseFloat(document.getElementById('inp-b-3d').value) || 0;
+            addConstraint3d(a1, a2, a3, b, ineqType3d);
+        });
+
+        document.getElementById('btn-random-3d').addEventListener('click', () => {
+            const vertices = computeVertices3d();
+
+            if (vertices.length < 4) {
+                // No polyhedron yet — seed a bounding box (cube)
+                if (constraints3d.length === 0) {
+                    addConstraint3d(1, 0, 0, 3, 'leq');
+                    addConstraint3d(-1, 0, 0, 3, 'leq');
+                    addConstraint3d(0, 1, 0, 3, 'leq');
+                    addConstraint3d(0, -1, 0, 3, 'leq');
+                    addConstraint3d(0, 0, 1, 3, 'leq');
+                    addConstraint3d(0, 0, -1, 3, 'leq');
+                } else {
+                    const a1 = parseFloat((Math.random() * 4 - 2).toFixed(1));
+                    const a2 = parseFloat((Math.random() * 4 - 2).toFixed(1));
+                    const a3 = parseFloat((Math.random() * 4 - 2).toFixed(1));
+                    const b = parseFloat((Math.random() * 6 - 3).toFixed(1));
+                    addConstraint3d(a1, a2, a3, b, Math.random() > 0.5 ? 'leq' : 'geq');
+                }
+                return;
+            }
+
+            // Pick a random interior point (centroid blended toward a random vertex)
+            const cx = vertices.reduce((s, p) => s + p.x, 0) / vertices.length;
+            const cy = vertices.reduce((s, p) => s + p.y, 0) / vertices.length;
+            const cz = vertices.reduce((s, p) => s + p.z, 0) / vertices.length;
+            const vi = Math.floor(Math.random() * vertices.length);
+            const t = 0.2 + Math.random() * 0.6;
+            const px = cx + t * (vertices[vi].x - cx);
+            const py = cy + t * (vertices[vi].y - cy);
+            const pz = cz + t * (vertices[vi].z - cz);
+
+            // Random normal direction (uniform on sphere)
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            const a1 = parseFloat((Math.sin(phi) * Math.cos(theta)).toFixed(2));
+            const a2 = parseFloat((Math.sin(phi) * Math.sin(theta)).toFixed(2));
+            const a3 = parseFloat(Math.cos(phi).toFixed(2));
+
+            // b = aᵀp so the plane passes through the interior point
+            const b = parseFloat((a1 * px + a2 * py + a3 * pz).toFixed(1));
+            addConstraint3d(a1, a2, a3, b, 'leq');
+        });
+
+        document.getElementById('btn-clear-3d').addEventListener('click', () => {
+            constraints3d = [];
+            updateConstraintList3d();
+            draw3d();
+        });
+
+        function addConstraint3d(a1, a2, a3, b, type) {
+            if (Math.abs(a1) < 1e-10 && Math.abs(a2) < 1e-10 && Math.abs(a3) < 1e-10) return;
+            constraints3d.push({ a1, a2, a3, b, type });
+            updateConstraintList3d();
+            draw3d();
+        }
+
+        function removeConstraint3d(idx) {
+            constraints3d.splice(idx, 1);
+            updateConstraintList3d();
+            draw3d();
+        }
+
+        function updateConstraintList3d() {
+            constraintCount3dEl.textContent = constraints3d.length;
+            constraintList3dEl.innerHTML = '';
+            constraints3d.forEach((c, i) => {
+                const div = document.createElement('div');
+                div.className = 'constraint-item';
+                const s2 = c.a2 >= 0 ? '+' : '−';
+                const s3 = c.a3 >= 0 ? '+' : '−';
+                const ineqSign = c.type === 'leq' ? '≤' : '≥';
+                div.innerHTML = `
+                    <span style="font-size:0.75rem">${c.a1.toFixed(1)}x₁ ${s2} ${Math.abs(c.a2).toFixed(1)}x₂ ${s3} ${Math.abs(c.a3).toFixed(1)}x₃ ${ineqSign} ${c.b.toFixed(1)}</span>
+                    <button class="remove-btn" data-idx="${i}">&times;</button>
+                `;
+                constraintList3dEl.appendChild(div);
+            });
+            constraintList3dEl.querySelectorAll('.remove-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    removeConstraint3d(parseInt(e.target.dataset.idx));
+                });
+            });
+        }
+
+        function init3d() {
+            if (initialized3d) return;
+            initialized3d = true;
+
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(50, container3d.clientWidth / container3d.clientHeight, 0.1, 1000);
+            camera.position.set(8, 6, 8);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setClearColor(0x1a1a2e);
+            renderer.localClippingEnabled = true;
+            container3d.appendChild(renderer.domElement);
+
+            orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
+            orbitControls.enableDamping = true;
+
+            // Axes (both directions)
+            const axesLen = 6;
+            const colors = [0xff4444, 0x44ff44, 0x4444ff];
+            const posDirs = [[axesLen,0,0],[0,axesLen,0],[0,0,axesLen]];
+            const negDirs = [[-axesLen,0,0],[0,-axesLen,0],[0,0,-axesLen]];
+            for (let i = 0; i < 3; i++) {
+                const geo = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(...negDirs[i]), new THREE.Vector3(...posDirs[i])
+                ]);
+                scene.add(new THREE.Line(geo, new THREE.LineBasicMaterial({ color: colors[i] })));
+            }
+
+            // Grid
+            const gridGeo = new THREE.BufferGeometry();
+            const gv = [];
+            for (let i = -8; i <= 8; i++) {
+                gv.push(i, 0, -8, i, 0, 8);
+                gv.push(-8, 0, i, 8, 0, i);
+            }
+            gridGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(gv), 3));
+            scene.add(new THREE.LineSegments(gridGeo, new THREE.LineBasicMaterial({ color: 0x0f3460, transparent: true, opacity: 0.2 })));
+
+            // Lighting
+            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+            const dl = new THREE.DirectionalLight(0xffffff, 0.8);
+            dl.position.set(5, 10, 5);
+            scene.add(dl);
+
+            resize3d();
+            animate3d();
+        }
+
+        function resize3d() {
+            if (!renderer) return;
+            renderer.setSize(container3d.clientWidth, container3d.clientHeight);
+            camera.aspect = container3d.clientWidth / container3d.clientHeight;
+            camera.updateProjectionMatrix();
+        }
+
+        function animate3d() {
+            requestAnimationFrame(animate3d);
+            if (orbitControls) orbitControls.update();
+            if (renderer) renderer.render(scene, camera);
+        }
+
+        function clearPoly3d() {
+            for (const obj of polyMeshes3d) {
+                scene.remove(obj);
+                if (obj.geometry) obj.geometry.dispose();
+                if (obj.material) obj.material.dispose();
+            }
+            polyMeshes3d = [];
+        }
+
+        // ===================== 3D POLYHEDRON (Convex hull of vertices) =====================
+        // Normalize constraints to aᵀx ≤ b
+        function getNormalized3d() {
+            return constraints3d.map(c => {
+                if (c.type === 'geq') return { a1: -c.a1, a2: -c.a2, a3: -c.a3, b: -c.b };
+                return { a1: c.a1, a2: c.a2, a3: c.a3, b: c.b };
+            });
+        }
+
+        // Find all vertices of the polyhedron by intersecting triplets of planes
+        function computeVertices3d() {
+            const norm = getNormalized3d();
+            const n = norm.length;
+            if (n < 3) return [];
+
+            const vertices = [];
+
+            // Try all combinations of 3 planes
+            for (let i = 0; i < n; i++) {
+                for (let j = i + 1; j < n; j++) {
+                    for (let k = j + 1; k < n; k++) {
+                        const pt = solve3x3(norm[i], norm[j], norm[k]);
+                        if (!pt) continue;
+
+                        // Check if this vertex satisfies ALL constraints
+                        let feasible = true;
+                        for (let m = 0; m < n; m++) {
+                            const val = norm[m].a1 * pt.x + norm[m].a2 * pt.y + norm[m].a3 * pt.z;
+                            if (val > norm[m].b + 1e-6) {
+                                feasible = false;
+                                break;
+                            }
+                        }
+
+                        if (feasible) {
+                            // Check for duplicates
+                            const dup = vertices.some(v =>
+                                Math.abs(v.x - pt.x) < 1e-6 &&
+                                Math.abs(v.y - pt.y) < 1e-6 &&
+                                Math.abs(v.z - pt.z) < 1e-6
+                            );
+                            if (!dup) vertices.push(pt);
+                        }
+                    }
+                }
+            }
+
+            return vertices;
+        }
+
+        // Solve 3x3 linear system using Cramer's rule
+        function solve3x3(c1, c2, c3) {
+            const a = [
+                [c1.a1, c1.a2, c1.a3],
+                [c2.a1, c2.a2, c2.a3],
+                [c3.a1, c3.a2, c3.a3],
+            ];
+            const b = [c1.b, c2.b, c3.b];
+
+            const det = det3(a);
+            if (Math.abs(det) < 1e-10) return null;
+
+            const dx = det3([
+                [b[0], a[0][1], a[0][2]],
+                [b[1], a[1][1], a[1][2]],
+                [b[2], a[2][1], a[2][2]],
+            ]);
+            const dy = det3([
+                [a[0][0], b[0], a[0][2]],
+                [a[1][0], b[1], a[1][2]],
+                [a[2][0], b[2], a[2][2]],
+            ]);
+            const dz = det3([
+                [a[0][0], a[0][1], b[0]],
+                [a[1][0], a[1][1], b[1]],
+                [a[2][0], a[2][1], b[2]],
+            ]);
+
+            return { x: dx / det, y: dy / det, z: dz / det };
+        }
+
+        function det3(m) {
+            return m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
+                 - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+                 + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+        }
+
+        // Convex hull of 3D points (incremental)
+        function convexHull3dPts(pts) {
+            if (pts.length < 4) {
+                if (pts.length === 3) return [[0, 1, 2]];
+                return [];
+            }
+
+            let p0 = 0, p1 = -1, p2 = -1, p3 = -1;
+            let maxD = 0;
+            for (let i = 1; i < pts.length; i++) {
+                const d = dist3(pts[p0], pts[i]);
+                if (d > maxD) { maxD = d; p1 = i; }
+            }
+            if (p1 === -1) return [];
+
+            maxD = 0;
+            const ld = sub3(pts[p1], pts[p0]);
+            for (let i = 0; i < pts.length; i++) {
+                if (i === p0 || i === p1) continue;
+                const d = crossLen3(ld, sub3(pts[i], pts[p0]));
+                if (d > maxD) { maxD = d; p2 = i; }
+            }
+            if (p2 === -1) return [];
+
+            const norm = cross3(sub3(pts[p1], pts[p0]), sub3(pts[p2], pts[p0]));
+            maxD = 0;
+            for (let i = 0; i < pts.length; i++) {
+                if (i === p0 || i === p1 || i === p2) continue;
+                const d = Math.abs(dot3(norm, sub3(pts[i], pts[p0])));
+                if (d > maxD) { maxD = d; p3 = i; }
+            }
+            if (p3 === -1) return [];
+
+            const center = {
+                x: (pts[p0].x + pts[p1].x + pts[p2].x + pts[p3].x) / 4,
+                y: (pts[p0].y + pts[p1].y + pts[p2].y + pts[p3].y) / 4,
+                z: (pts[p0].z + pts[p1].z + pts[p2].z + pts[p3].z) / 4,
+            };
+
+            let faces = [];
+            const tetra = [p0, p1, p2, p3];
+            const fi = [[0,1,2],[0,1,3],[0,2,3],[1,2,3]];
+            for (const f of fi) {
+                let a = tetra[f[0]], b = tetra[f[1]], c = tetra[f[2]];
+                const n = faceNorm(pts[a], pts[b], pts[c]);
+                const mid = { x: (pts[a].x+pts[b].x+pts[c].x)/3, y: (pts[a].y+pts[b].y+pts[c].y)/3, z: (pts[a].z+pts[b].z+pts[c].z)/3 };
+                if (dot3(n, sub3(mid, center)) < 0) [b, c] = [c, b];
+                faces.push([a, b, c]);
+            }
+
+            const used = new Set(tetra);
+            for (let i = 0; i < pts.length; i++) {
+                if (used.has(i)) continue;
+                const p = pts[i];
+                const visible = [], invisible = [];
+                for (let f = 0; f < faces.length; f++) {
+                    const [a,b,c] = faces[f];
+                    const n = faceNorm(pts[a], pts[b], pts[c]);
+                    const mid = { x:(pts[a].x+pts[b].x+pts[c].x)/3, y:(pts[a].y+pts[b].y+pts[c].y)/3, z:(pts[a].z+pts[b].z+pts[c].z)/3 };
+                    if (dot3(n, sub3(p, mid)) > 1e-10) visible.push(f);
+                    else invisible.push(f);
+                }
+                if (visible.length === 0) continue;
+
+                const horizon = [];
+                for (const vi of visible) {
+                    const face = faces[vi];
+                    for (let e = 0; e < 3; e++) {
+                        const ea = face[e], eb = face[(e+1)%3];
+                        let shared = false;
+                        for (const ii of invisible) {
+                            const f2 = faces[ii];
+                            if (hasEdge(f2, eb, ea)) { shared = true; break; }
+                        }
+                        if (shared) horizon.push([ea, eb]);
+                    }
+                }
+
+                const newFaces = [];
+                for (let f = 0; f < faces.length; f++) {
+                    if (!visible.includes(f)) newFaces.push(faces[f]);
+                }
+                for (const [ea, eb] of horizon) newFaces.push([ea, eb, i]);
+                faces = newFaces;
+            }
+            return faces;
+        }
+
+        function hasEdge(face, a, b) {
+            for (let e = 0; e < 3; e++) {
+                if (face[e] === a && face[(e+1)%3] === b) return true;
+            }
+            return false;
+        }
+        function sub3(a,b) { return {x:a.x-b.x, y:a.y-b.y, z:a.z-b.z}; }
+        function dot3(a,b) { return a.x*b.x + a.y*b.y + a.z*b.z; }
+        function cross3(a,b) { return {x:a.y*b.z-a.z*b.y, y:a.z*b.x-a.x*b.z, z:a.x*b.y-a.y*b.x}; }
+        function crossLen3(a,b) { const c=cross3(a,b); return Math.sqrt(c.x*c.x+c.y*c.y+c.z*c.z); }
+        function dist3(a,b) { return Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2+(a.z-b.z)**2); }
+        function faceNorm(a,b,c) { return cross3(sub3(b,a), sub3(c,a)); }
+
+        function draw3d() {
+            if (!initialized3d) return;
+            clearPoly3d();
+
+            const vertices = computeVertices3d();
+            if (vertices.length < 3) return;
+
+            // Draw vertex points
+            const ptGeo = new THREE.BufferGeometry();
+            const pos = new Float32Array(vertices.length * 3);
+            for (let i = 0; i < vertices.length; i++) {
+                pos[i*3] = vertices[i].x;
+                pos[i*3+1] = vertices[i].y;
+                pos[i*3+2] = vertices[i].z;
+            }
+            ptGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            const ptMesh = new THREE.Points(ptGeo, new THREE.PointsMaterial({ color: 0x00ff88, size: 0.25 }));
+            scene.add(ptMesh);
+            polyMeshes3d.push(ptMesh);
+
+            if (vertices.length >= 4) {
+                // Compute convex hull of vertices
+                const faces = convexHull3dPts(vertices);
+                if (faces.length === 0) return;
+
+                // Build mesh
+                const verts = [];
+                for (const [a,b,c] of faces) {
+                    verts.push(vertices[a].x, vertices[a].y, vertices[a].z);
+                    verts.push(vertices[b].x, vertices[b].y, vertices[b].z);
+                    verts.push(vertices[c].x, vertices[c].y, vertices[c].z);
+                }
+                const geo = new THREE.BufferGeometry();
+                geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts), 3));
+                geo.computeVertexNormals();
+
+                const mesh = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({
+                    color: 0x00ff88,
+                    transparent: true,
+                    opacity: 0.2,
+                    side: THREE.DoubleSide,
+                }));
+                scene.add(mesh);
+                polyMeshes3d.push(mesh);
+
+                // Wireframe edges
+                const edgesGeo = new THREE.EdgesGeometry(geo);
+                const edges = new THREE.LineSegments(edgesGeo, new THREE.LineBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.6 }));
+                scene.add(edges);
+                polyMeshes3d.push(edges);
+            }
+        }
+    </script>
+</body>
+</html>
