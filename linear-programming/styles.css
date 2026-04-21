@@ -1,0 +1,71 @@
+body { display: flex; height: 100vh; }
+
+.back-link {
+    display: inline-block; color: #e94560; text-decoration: none;
+    font-size: 0.85rem; margin-bottom: 15px;
+}
+.back-link:hover { text-decoration: underline; }
+
+.add-row {
+    display: flex; gap: 4px; margin: 5px 0; align-items: center;
+}
+.add-row input { flex: 1; padding: 6px; font-size: 0.85rem; }
+.add-row label { color: #888; font-size: 0.8rem; min-width: 18px; }
+
+.ineq-type {
+    display: flex; gap: 0; border-radius: 4px; overflow: hidden;
+    border: 1px solid #0f3460; margin: 8px 0;
+}
+.ineq-btn {
+    flex: 1; padding: 6px; margin: 0 !important; width: auto !important;
+    border: none; border-radius: 0; background: #1a1a2e; color: #888;
+    font-size: 0.8rem; cursor: pointer; transition: all 0.3s;
+}
+.ineq-btn.active { background: #e94560; color: #fff; }
+.ineq-btn:hover:not(.active) { background: #0f3460; }
+
+.constraint-list { max-height: 150px; overflow-y: auto; margin: 10px 0; }
+.constraint-item {
+    display: flex; align-items: center; gap: 6px; padding: 6px 8px;
+    margin: 4px 0; background: #1a1a2e; border-radius: 4px;
+    font-size: 0.82rem; font-family: 'Courier New', monospace; color: #0f9b8e;
+}
+.constraint-item .remove-btn {
+    margin-left: auto; background: none; border: none; color: #e94560;
+    cursor: pointer; font-size: 1rem; padding: 0 4px;
+    width: auto !important; margin-top: 0; margin-bottom: 0;
+}
+.constraint-item .remove-btn:hover { color: #ff6b6b; background: none; }
+
+.status-text { color: #888; font-size: 0.85rem; margin: 5px 0; }
+
+.obj-display {
+    text-align: center; color: #ffcc00; font-size: 0.95rem;
+    margin: 8px 0; padding: 8px; background: #1a1a2e; border-radius: 4px;
+    font-family: 'Courier New', monospace;
+}
+
+.optimal-display {
+    text-align: center; color: #00ff88; font-size: 0.9rem;
+    margin: 8px 0; padding: 8px; background: #1a1a2e; border-radius: 4px;
+}
+
+.mode-tabs {
+    display: flex; gap: 0; margin-bottom: 10px; border-radius: 4px;
+    overflow: hidden; border: 1px solid #0f3460;
+}
+.mode-tab {
+    flex: 1; padding: 8px; margin: 0 !important; width: auto !important;
+    border: none; border-radius: 0; background: #1a1a2e; color: #888;
+    font-size: 0.9rem; cursor: pointer; transition: all 0.3s;
+}
+.mode-tab.active { background: #e94560; color: #fff; }
+.mode-tab:hover:not(.active) { background: #0f3460; }
+
+.opt-type { margin-bottom: 10px; }
+
+.canvas-container { flex: 1; position: relative; }
+canvas { display: block; width: 100%; height: 100%; }
+
+#container-3d { display: none; flex: 1; position: relative; }
+#container-3d.visible { display: block; }

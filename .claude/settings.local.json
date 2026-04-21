@@ -10,7 +10,8 @@
       "Bash(brew --prefix python@3)",
       "Read(//opt/homebrew/bin/**)",
       "Read(//usr/local/bin/**)",
-      "Bash(xargs kill:*)"
+      "Bash(xargs kill:*)",
+      "Bash(ls /Users/hardikkamboj/Desktop/Programming/optimization_visualization/*/)"
     ]
   }
 }

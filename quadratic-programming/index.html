@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quadratic Programming</title>
+    <link rel="stylesheet" href="../shared/styles.css">
+    <style>
+        body { display: flex; height: 100vh; }
+        .canvas-container { flex: 1; }
+        canvas { display: block; width: 100%; height: 100%; }
+        .back-link { display: inline-block; color: #e94560; text-decoration: none; font-size: 0.85rem; margin-bottom: 15px; }
+        .add-row { display: flex; gap: 4px; margin: 5px 0; align-items: center; }
+        .add-row input { flex: 1; padding: 6px; font-size: 0.85rem; }
+        .add-row label { color: #888; font-size: 0.8rem; min-width: 28px; }
+        .formula { text-align: center; color: #0f9b8e; font-size: 0.82rem; font-family: 'Courier New', monospace; background: #1a1a2e; padding: 8px; border-radius: 4px; margin: 8px 0; }
+        .ineq-type { display: flex; border-radius: 4px; overflow: hidden; border: 1px solid #0f3460; margin: 8px 0; }
+        .ineq-btn { flex: 1; padding: 6px; border: none; border-radius: 0; background: #1a1a2e; color: #888; font-size: 0.8rem; cursor: pointer; transition: all 0.3s; margin: 0 !important; width: auto !important; }
+        .ineq-btn.active { background: #e94560; color: #fff; }
+        .ineq-btn:hover:not(.active) { background: #0f3460; }
+        .constraint-list { max-height: 130px; overflow-y: auto; margin: 6px 0; }
+        .constraint-item { display: flex; align-items: center; gap: 6px; padding: 5px 8px; margin: 3px 0; background: #1a1a2e; border-radius: 4px; font-size: 0.8rem; font-family: 'Courier New', monospace; color: #0f9b8e; }
+        .constraint-item .remove-btn { margin-left: auto; background: none; border: none; color: #e94560; cursor: pointer; font-size: 1rem; padding: 0 4px; width: auto !important; margin-top: 0; margin-bottom: 0; }
+        .constraint-item .remove-btn:hover { color: #ff6b6b; background: none; }
+        .status-text { color: #888; font-size: 0.82rem; margin: 4px 0; }
+        .section-label { color: #888; font-size: 0.8rem; margin: 10px 0 4px; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <a href="../" class="back-link">&larr; Back</a>
+        <h1>Quadratic Program</h1>
+
+        <h2>Objective Function</h2>
+        <p class="section-label">Quadratic (Q):</p>
+        <div class="add-row"><label>q₁₁</label><input type="number" id="q11" value="1" step="0.1"></div>
+        <div class="add-row"><label>q₁₂</label><input type="number" id="q12" value="0" step="0.1"></div>
+        <div class="add-row"><label>q₂₂</label><input type="number" id="q22" value="1" step="0.1"></div>
+        <p class="section-label">Linear (c):</p>
+        <div class="add-row"><label>c₁</label><input type="number" id="c1" value="0" step="0.1"></div>
+        <div class="add-row"><label>c₂</label><input type="number" id="c2" value="0" step="0.1"></div>
+        <div class="formula" id="formula">f = x₁² + x₂²</div>
+
+        <h2>Feasible Rectangle</h2>
+        <p style="color:#888; font-size:0.82rem; line-height:1.5;">Drag the <span style="color:rgba(100,200,255,0.9)">corner handles</span> on the canvas to reshape the feasible region.</p>
+
+        <div class="legend" style="margin-top: 14px;">
+            <div class="legend-item"><div class="legend-color" style="background:#ffcc00;"></div><span>Level curves  f = k</span></div>
+            <div class="legend-item"><div class="legend-color" style="background:rgba(0,255,136,0.3);"></div><span>Feasible region</span></div>
+            <div class="legend-item"><div class="legend-color" style="background:#e94560;"></div><span>Optimal point</span></div>
+        </div>
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <script src="../shared/draggable-rect.js"></script>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx    = canvas.getContext('2d');
+        const SCALE  = 50;
+
+        // ── Helpers ───────────────────────────────────────────────
+        function origin()         { return { x: canvas.width/2, y: canvas.height/2 }; }
+        function toCanvas(wx,wy)  { const o=origin(); return { x: o.x+wx*SCALE, y: o.y-wy*SCALE }; }
+        function toWorld(px,py)   { const o=origin(); return { x:(px-o.x)/SCALE, y:(o.y-py)/SCALE }; }
+
+        function getCoeffs() {
+            return {
+                q11: parseFloat(document.getElementById('q11').value)||0,
+                q12: parseFloat(document.getElementById('q12').value)||0,
+                q22: parseFloat(document.getElementById('q22').value)||0,
+                c1:  parseFloat(document.getElementById('c1').value) ||0,
+                c2:  parseFloat(document.getElementById('c2').value) ||0,
+            };
+        }
+
+        function fVal(x1, x2, cf) {
+            return cf.q11*x1*x1 + cf.q12*x1*x2 + cf.q22*x2*x2 + cf.c1*x1 + cf.c2*x2;
+        }
+
+        // ── Polyhedron ────────────────────────────────────────────
+        function clipPolygon(poly, a1, a2, b) {  // eslint-disable-line no-unused-vars
+            if (!poly.length) return [];
+            const out = [];
+            for (let i=0; i<poly.length; i++) {
+                const curr=poly[i], next=poly[(i+1)%poly.length];
+                const cIn = a1*curr.x+a2*curr.y <= b+1e-9;
+                const nIn = a1*next.x+a2*next.y <= b+1e-9;
+                const d1  = a1*curr.x+a2*curr.y-b, d2=a1*next.x+a2*next.y-b;
+                const t   = d1/(d1-d2);
+                const ix  = { x:curr.x+t*(next.x-curr.x), y:curr.y+t*(next.y-curr.y) };
+                if (cIn&&nIn) out.push(next);
+                else if (cIn&&!nIn) out.push(ix);
+                else if (!cIn&&nIn) { out.push(ix); out.push(next); }
+            }
+            return out;
+        }
+
+        function computePolyhedron() {
+            const constraints = rect.getConstraints();
+            const BIG = 50;
+            let poly = [{x:-BIG,y:-BIG},{x:BIG,y:-BIG},{x:BIG,y:BIG},{x:-BIG,y:BIG}];
+            for (const c of constraints) {
+                const s = c.type==='geq' ? -1 : 1;
+                poly = clipPolygon(poly, s*c.a1, s*c.a2, s*c.b);
+                if (!poly.length) return [];
+            }
+            return poly;
+        }
+
+        // ── Constrained optimum ───────────────────────────────────
+        // Strategy:
+        //  1. If unconstrained min exists and lies inside the feasible polygon → that's optimal.
+        //  2. Otherwise minimize f over each edge (1D quadratic) and all vertices.
+
+        function pointInPolygon(x, y, poly) {
+            // Ray casting
+            let inside = false;
+            for (let i=0,j=poly.length-1; i<poly.length; j=i++) {
+                const xi=poly[i].x, yi=poly[i].y, xj=poly[j].x, yj=poly[j].y;
+                if (((yi>y)!==(yj>y)) && x < (xj-xi)*(y-yi)/(yj-yi)+xi) inside=!inside;
+            }
+            return inside;
+        }
+
+        function minimizeOnEdge(A, B, cf) {
+            // f(A + t*(B-A)) is quadratic in t, t∈[0,1]
+            const dx=B.x-A.x, dy=B.y-A.y;
+            const a = cf.q11*dx*dx + cf.q12*dx*dy + cf.q22*dy*dy;
+            const b = 2*cf.q11*A.x*dx + cf.q12*(A.x*dy+dx*A.y) + 2*cf.q22*A.y*dy + cf.c1*dx + cf.c2*dy;
+            // Candidates: endpoints and interior minimum
+            const ts = [0, 1];
+            if (Math.abs(a) > 1e-10) {
+                const tStar = -b / (2*a);
+                if (tStar > 0 && tStar < 1) ts.push(tStar);
+            }
+            let best=null;
+            for (const t of ts) {
+                const x=A.x+t*dx, y=A.y+t*dy;
+                const v=fVal(x, y, cf);
+                if (best===null || v<best.value) best={x, y, value:v};
+            }
+            return best;
+        }
+
+        function findConstrainedOptimum(poly, cf) {
+            const realVerts = poly.filter(v=>Math.abs(v.x)<49&&Math.abs(v.y)<49);
+            if (!realVerts.length) return null;
+
+            // 1. Check unconstrained minimum
+            const det = 4*cf.q11*cf.q22 - cf.q12*cf.q12;
+            if (Math.abs(det) > 1e-10) {
+                const ux = (-2*cf.q22*cf.c1 + cf.q12*cf.c2) / det;
+                const uy = ( cf.q12*cf.c1 - 2*cf.q11*cf.c2) / det;
+                if (pointInPolygon(ux, uy, poly)) {
+                    return { x:ux, y:uy, value:fVal(ux, uy, cf) };
+                }
+            }
+
+            // 2. Minimize over edges and vertices
+            let best = null;
+            for (let i=0; i<realVerts.length; i++) {
+                const A = realVerts[i];
+                const B = realVerts[(i+1)%realVerts.length];
+                const edgeBest = minimizeOnEdge(A, B, cf);
+                if (best===null || edgeBest.value < best.value) best = edgeBest;
+            }
+            return best;
+        }
+
+        // ── Draw ──────────────────────────────────────────────────
+        function draw() {
+            const W=canvas.width, H=canvas.height;
+            const o=origin();
+            const rX=Math.ceil(W/SCALE/2), rY=Math.ceil(H/SCALE/2);
+            const cf=getCoeffs();
+
+            // update formula display
+            const terms=[];
+            if(cf.q11) terms.push(`${cf.q11}x₁²`);
+            if(cf.q12) terms.push(`${cf.q12}x₁x₂`);
+            if(cf.q22) terms.push(`${cf.q22}x₂²`);
+            if(cf.c1)  terms.push(`${cf.c1}x₁`);
+            if(cf.c2)  terms.push(`${cf.c2}x₂`);
+            document.getElementById('formula').textContent = 'f = '+(terms.length?terms.join(' + ').replace(/\+ -/g,'− '):'0');
+
+            ctx.clearRect(0,0,W,H);
+
+            // Grid
+            ctx.strokeStyle='rgba(255,255,255,0.04)'; ctx.lineWidth=1;
+            for(let x=o.x%SCALE;x<W;x+=SCALE){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+            for(let y=o.y%SCALE;y<H;y+=SCALE){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+
+            // Axes
+            ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.lineWidth=1;
+            ctx.beginPath();ctx.moveTo(0,o.y);ctx.lineTo(W,o.y);ctx.stroke();
+            ctx.beginPath();ctx.moveTo(o.x,0);ctx.lineTo(o.x,H);ctx.stroke();
+            ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.font='13px sans-serif';
+            ctx.fillText('x₁',W-20,o.y-8); ctx.fillText('x₂',o.x+8,12);
+
+            // Ticks
+            ctx.fillStyle='rgba(255,255,255,0.3)'; ctx.font='10px sans-serif';
+            for(let i=-rX;i<=rX;i++){if(!i)continue; const px=o.x+i*SCALE; ctx.beginPath();ctx.moveTo(px,o.y-3);ctx.lineTo(px,o.y+3);ctx.strokeStyle='rgba(255,255,255,0.2)';ctx.lineWidth=1;ctx.stroke();ctx.fillText(i,px-4,o.y+14);}
+            for(let i=-rY;i<=rY;i++){if(!i)continue; const py=o.y-i*SCALE; ctx.beginPath();ctx.moveTo(o.x-3,py);ctx.lineTo(o.x+3,py);ctx.strokeStyle='rgba(255,255,255,0.2)';ctx.lineWidth=1;ctx.stroke();ctx.fillText(i,o.x+6,py+4);}
+
+            // ── Level curves ──────────────────────────────────────
+            const nonTrivial=cf.q11||cf.q12||cf.q22||cf.c1||cf.c2;
+            if (nonTrivial) {
+                const samples=[];
+                for(let i=-rX;i<=rX;i++) for(let j=-rY;j<=rY;j++) samples.push(fVal(i,j,cf));
+                const fMin=Math.min(...samples), fMax=Math.max(...samples), fRange=fMax-fMin;
+
+                if (fRange > 1e-6) {
+                    const NUM=12;
+                    for(let li=0;li<=NUM;li++){
+                        const k = fMin+(li/NUM)*fRange;
+                        const t = li/NUM;
+                        const alpha = 0.15+0.5*(1-Math.abs(2*t-1));
+                        ctx.fillStyle=`rgba(255,204,0,${alpha})`;
+
+                        for(let py=0;py<H;py++){
+                            const y=(o.y-py)/SCALE;
+                            const A=cf.q11, B=cf.q12*y+cf.c1, C=cf.q22*y*y+cf.c2*y-k;
+                            let xs=[];
+                            if(Math.abs(A)<1e-10){ if(Math.abs(B)>1e-10) xs=[-C/B]; }
+                            else { const d=B*B-4*A*C; if(d>=0){const sq=Math.sqrt(d); xs=[(-B+sq)/(2*A),(-B-sq)/(2*A)];} }
+                            for(const x of xs){ const px=o.x+x*SCALE; if(px>=0&&px<W) ctx.fillRect(px,py,1.5,1.5); }
+                        }
+
+                        // label
+                        if(li%3===0){
+                            const A=cf.q11,B=cf.c1,C=-k;
+                            let lx=null;
+                            if(Math.abs(A)<1e-10&&Math.abs(B)>1e-10) lx=-C/B;
+                            else if(Math.abs(A)>=1e-10){const d=B*B-4*A*C;if(d>=0)lx=(-B+Math.sqrt(d))/(2*A);}
+                            if(lx!==null){const lp=toCanvas(lx,0);if(lp.x>=0&&lp.x<W-30&&lp.y>=0&&lp.y<H){ctx.fillStyle=`rgba(255,204,0,${alpha+0.2})`;ctx.font='9px sans-serif';ctx.fillText(k.toFixed(1),lp.x+3,lp.y-3);}}
+                        }
+                    }
+                }
+            }
+
+            // ── Feasible region ───────────────────────────────────
+            const poly=computePolyhedron();
+            if(poly.length>=3){
+                // Fill
+                ctx.beginPath();
+                const f0=toCanvas(poly[0].x,poly[0].y); ctx.moveTo(f0.x,f0.y);
+                for(let i=1;i<poly.length;i++){const p=toCanvas(poly[i].x,poly[i].y);ctx.lineTo(p.x,p.y);}
+                ctx.closePath(); ctx.fillStyle='rgba(0,255,136,0.12)'; ctx.fill();
+                // Border
+                ctx.beginPath(); ctx.moveTo(f0.x,f0.y);
+                for(let i=1;i<poly.length;i++){const p=toCanvas(poly[i].x,poly[i].y);ctx.lineTo(p.x,p.y);}
+                ctx.closePath(); ctx.strokeStyle='#00ff88'; ctx.lineWidth=2; ctx.stroke();
+                // Vertices
+                for(const v of poly){
+                    if(Math.abs(v.x)>49||Math.abs(v.y)>49)continue;
+                    const p=toCanvas(v.x,v.y); ctx.beginPath();ctx.arc(p.x,p.y,4,0,Math.PI*2);ctx.fillStyle='#00ff88';ctx.fill();
+                }
+
+                // ── Optimal point ─────────────────────────────────
+                const opt=findConstrainedOptimum(poly,cf);
+                if(opt){
+                    const op=toCanvas(opt.x,opt.y);
+                    ctx.beginPath();ctx.arc(op.x,op.y,7,0,Math.PI*2);
+                    ctx.fillStyle='#e94560';ctx.fill();
+                    ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+                    ctx.fillStyle='#fff';ctx.font='bold 11px sans-serif';
+                    ctx.fillText(`(${opt.x.toFixed(2)}, ${opt.y.toFixed(2)})`,op.x+10,op.y-6);
+                    ctx.fillStyle='#ffcc00';ctx.font='10px sans-serif';
+                    ctx.fillText(`f* = ${opt.value.toFixed(2)}`,op.x+10,op.y+8);
+                }
+            }
+
+            // Draggable rect handles (always on top)
+            rect.drawHandles(ctx, toCanvas);
+        }
+
+        ['q11','q12','q22','c1','c2'].forEach(id=>document.getElementById(id).addEventListener('input',draw));
+        window.addEventListener('resize',()=>{ canvas.width=canvas.parentElement.clientWidth; canvas.height=canvas.parentElement.clientHeight; draw(); });
+
+        // Draggable rectangle — starts as [-3, 3] × [-3, 3]
+        const rect = new DraggableRect(-3, 3, -3, 3);
+        rect.onChange = draw;
+
+        canvas.width=canvas.parentElement.clientWidth; canvas.height=canvas.parentElement.clientHeight;
+        rect.attach(canvas, toCanvas, toWorld);
+        draw();
+    </script>
+</body>
+</html>
